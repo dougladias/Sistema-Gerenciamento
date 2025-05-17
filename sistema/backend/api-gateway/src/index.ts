@@ -8,12 +8,13 @@ import {
   WORKER_SERVICE_PORT 
 } from './config/env';
 import { handleWorkerRoutes } from './routes/worker.routes';
+import { handleDocumentRoutes } from './routes/document.routes';
 import { handleTemplateRoutes } from './routes/template.routes';
 import { sendError } from './middlewares/errorHandler';
 import { checkTemplateService } from './services/templateServiceChecker';
 import { checkWorkerService } from './services/workerServiceChecker';
 
-// Importa as rotas de documentos, workers e templates
+// API Gateway para rotear requisições para os serviços apropriados
 export class SimpleApiGateway {
   private server: http.Server;
 
@@ -29,8 +30,9 @@ export class SimpleApiGateway {
     });
   }
 
-  // Método para encerrar o servidor
+  // Método para lidar com as requisições
   private async handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    // Configuração de CORS para permitir requisições cross-origin
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -49,14 +51,18 @@ export class SimpleApiGateway {
       const path = parsedUrl.pathname || '/';
       console.log(`🔄 Gateway recebeu requisição: ${req.method} ${path}`);
       
-
-      // Tenta processar as rotas de templates
-      if (await handleTemplateRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
+      // Tenta processar as rotas de documentos 
+      if (await handleDocumentRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
         return;
       }
 
       // Tenta processar as rotas de workers
       if (await handleWorkerRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
+        return;
+      }
+
+      // Tenta processar as rotas de templates
+      if (await handleTemplateRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
         return;
       }
 
@@ -91,7 +97,7 @@ async function startGateway() {
   
   // Exibe o status dos serviços
   console.log(`📊 Status dos serviços:`);  
-  console.log(`Serviço de Workers: ${workerServiceAvailable ? '✅ Online' : '❌ Offline'}`);
+  console.log(`Serviço de Workers (inclui Documentos): ${workerServiceAvailable ? '✅ Online' : '❌ Offline'}`);
   console.log(`Serviço de Templates: ${templateServiceAvailable ? '✅ Online' : '❌ Offline'}`);
   
   // Inicia o gateway mesmo que alguns serviços estejam offline

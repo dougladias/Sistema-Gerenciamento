@@ -17,8 +17,7 @@ LOGS_DIR="../logs"
 
 # Lista de serviços para iniciar
 SERVICES=(    
-  "worker-service"
-  "document-service"
+  "worker-service"  
   "template-service"
 
 

@@ -17,3 +17,5 @@ export const WORKER_SERVICE_PORT = process.env.WORKER_SERVICE_PORT || 4015;
 export const WORKER_SERVICE_HOST = process.env.WORKER_SERVICE_HOST || 'localhost';
 export const WORKER_SERVICE_URL = `http://${WORKER_SERVICE_HOST}:${WORKER_SERVICE_PORT}`;
 
+// Configurações do serviço de documentos 
+export const DOCUMENT_SERVICE_URL = WORKER_SERVICE_URL;

@@ -13,8 +13,7 @@ BASE_DIR="../../backend"
 
 # Lista de serviços
 SERVICES=(
-  "api-gateway"
-  "document-service"
+  "api-gateway"  
   "worker-service"
   "template-service"
 )

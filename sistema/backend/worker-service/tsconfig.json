@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "es2018",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "../",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "shared/*": ["../shared/src/*"]
+    },
+    "typeRoots": [
+      "./node_modules/@types",
+      "../shared/src/types"
+    ]
+  },
+  "include": [
+    "src/**/*",
+    "../shared/src/**/*"
+  ],
+  "exclude": ["node_modules", "**/*.test.ts", "dist"]
+}

@@ -30,12 +30,6 @@ async function startServer() {
     // Exibe informações sobre o serviço
     console.log(`✅ Worker Service iniciado com sucesso em http://localhost:${PORT}`);
     console.log(`📝 ${process.env.APP_NAME || 'API de Funcionários'}`);
-    console.log(`📊 Endpoints disponíveis:`);
-    console.log(`   GET  /             - Status da API`);
-    console.log(`   GET  /workers      - Listar funcionários`);
-    console.log(`   GET  /workers/:id  - Buscar funcionário por ID`);
-    console.log(`   POST /workers      - Criar funcionário`);
-    console.log(`   PUT  /workers/:id  - Atualizar funcionário`);
   } catch (error) {
     console.error('❌ Erro ao iniciar o servidor:', error);
     process.exit(1);

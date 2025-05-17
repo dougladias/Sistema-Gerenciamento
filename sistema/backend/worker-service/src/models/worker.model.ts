@@ -11,14 +11,16 @@ export interface IEntry {
 
 // Interface para arquivos
 export interface IFile {
+  _id?: string;
   filename: string;
   originalName: string;
   mimetype: string;
   size: number;
-  path: string;
+  content: Buffer;  
   uploadDate: Date;
   description?: string;
   category?: string;
+  path?: string;
 }
 
 // Interface para o documento Worker
@@ -70,6 +72,8 @@ const WorkerSchema = new Schema<IWorker>(
       default: "active",
       enum: ["active", "inactive", "other"],
     },
+
+    // Campos para logs de entrada/saída
     logs: [
       {
         entryTime: { type: Date },
@@ -79,16 +83,18 @@ const WorkerSchema = new Schema<IWorker>(
         createdAt: { type: Date, default: Date.now },
       },
     ],
+
+    // Campos para arquivos
     files: [
       {
         filename: { type: String, required: true },
         originalName: { type: String, required: true },
         mimetype: { type: String, required: true },
         size: { type: Number, required: true },
-        path: { type: String, required: true },
+        content: { type: Buffer, required: true },  
         uploadDate: { type: Date, default: Date.now },
         description: { type: String },
-        category: { type: String },
+        category: { type: String }
       },
     ],
   },
@@ -102,6 +108,7 @@ const WorkerSchema = new Schema<IWorker>(
 WorkerSchema.index({ name: 1 });
 WorkerSchema.index({ department: 1 });
 WorkerSchema.index({ status: 1 });
+WorkerSchema.index({ 'files.category': 1 });
 
 // Função para criar o modelo Worker
 export const createWorkerModel = () => {

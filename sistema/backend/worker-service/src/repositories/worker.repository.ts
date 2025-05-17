@@ -12,15 +12,7 @@ export interface IWorkerRepository {
   update(id: string, worker: Partial<IWorker>): Promise<IWorker | null>;
   delete(id: string): Promise<boolean>;
   addEntry(workerId: string, entry: { entryTime?: Date; leaveTime?: Date; absent?: boolean }): Promise<IWorker | null>;
-  addFile(workerId: string, file: { 
-    filename: string; 
-    originalName: string; 
-    mimetype: string; 
-    size: number; 
-    path: string;
-    description?: string;
-    category?: string;
-  }): Promise<IWorker | null>;
+  addFile(workerId: string, file: IFile): Promise<IWorker | null>;
   updateFile(workerId: string, fileId: string, updates: Partial<IFile>): Promise<IWorker | null>;
   removeFile(workerId: string, fileId: string): Promise<IWorker | null>;
 }

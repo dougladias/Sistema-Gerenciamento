@@ -1,7 +1,8 @@
 import http from 'http';
 import url from 'url';
-import { workerRepository } from '../repositories/worker.repository';
 import dotenv from 'dotenv';
+import { workerRoutes } from '../routes/worker.routes';
+import { documentRoutes } from '../routes/document.routes';
 
 // Carrega as variáveis de ambiente
 dotenv.config();
@@ -14,29 +15,6 @@ interface Route {
   method: HttpMethod;
   path: string;
   handler: RouteHandler;
-}
-
-// Função para ler o corpo da requisição
-async function readRequestBody(req: http.IncomingMessage): Promise<any> {
-  return new Promise((resolve) => {
-    const body: Buffer[] = [];
-    req.on('data', (chunk: Buffer) => {
-      body.push(chunk);
-    });
-    // Quando o corpo da requisição terminar de ser lido
-    req.on('end', () => {
-      const bodyString = Buffer.concat(body).toString();
-      if (bodyString) {
-        try {
-          resolve(JSON.parse(bodyString));
-        } catch (e) {
-          resolve(bodyString);
-        }
-      } else {
-        resolve({});
-      }
-    });
-  });
 }
 
 // Classe principal do serviço
@@ -56,142 +34,55 @@ export class WorkerService {
   public start(): void {
     this.server.listen(this.port, () => {
       console.log(`Servidor iniciado na porta ${this.port}`);
+      this.logAvailableRoutes();
     });
   }
 
   // Registra as rotas da API
   private registerRoutes(): void {
-    // Rota de teste
+    // Rota de teste/status
     this.addRoute('GET', '/', async (req, res) => {
       this.sendJson(res, { message: 'API de Funcionários funcionando!' });
     });
 
-    // Rota de listar todos os funcionários
-    this.addRoute('GET', '/workers', async (req, res) => {
-      try {
-        const workers = await workerRepository.findAll();
-        this.sendJson(res, workers);
-      } catch (error) {
-        this.sendError(res, 500, 'Erro ao buscar funcionários');
-      }
+    // Adiciona as rotas de funcionários
+    workerRoutes.forEach(route => {
+      this.addRoute(route.method as HttpMethod, route.path, route.handler);
     });
 
-    // Rota de buscar funcionário por ID
-    this.addRoute('GET', '/workers/:id', async (req, res, params) => {
-      try {
-        const worker = await workerRepository.findById(params.id);
-        if (!worker) {
-          this.sendError(res, 404, 'Funcionário não encontrado');
-          return;
-        }
-        // Envia a resposta JSON
-        this.sendJson(res, worker);
-      } catch (error) {
-        this.sendError(res, 500, 'Erro ao buscar funcionário');
-      }
+    // Adiciona as rotas de documentos
+    documentRoutes.forEach(route => {
+      this.addRoute(route.method as HttpMethod, route.path, route.handler);
     });
+  }
 
-    // Rota de criar funcionário
-    this.addRoute('POST', '/workers', async (req, res) => {
-      try {
-        const body = await readRequestBody(req);
-        const worker = await workerRepository.create(body);
-        this.sendJson(res, worker, 201);
-      } catch (error) {
-        this.sendError(res, 400, `Erro ao criar funcionário: ${(error as Error).message}`);
-      }
-    });
-
-    // Rota de atualizar funcionário
-    this.addRoute('PUT', '/workers/:id', async (req, res, params) => {
-      try {
-        const body = await readRequestBody(req);
-        const worker = await workerRepository.update(params.id, body);
-        if (!worker) {
-          this.sendError(res, 404, 'Funcionário não encontrado');
-          return;
-        }
-        // Envia a resposta JSON
-        this.sendJson(res, worker);
-      } catch (error) {
-        this.sendError(res, 400, `Erro ao atualizar funcionário: ${(error as Error).message}`);
-      }
-    });
-
-    // Rota de excluir funcionário
-    this.addRoute('DELETE', '/workers/:id', async (req, res, params) => {
-      try {
-        const deleted = await workerRepository.delete(params.id);
-        if (!deleted) {
-          this.sendError(res, 404, 'Funcionário não encontrado');
-          return;
-        }
-        // Envia resposta sem conteúdo
-        this.sendNoContent(res);
-      } catch (error) {
-        this.sendError(res, 500, 'Erro ao excluir funcionário');
-      }
-    });
-
-    // Rota de adicionar registro de entrada/saída
-    this.addRoute('POST', '/workers/:id/entries', async (req, res, params) => {
-      try {
-        const body = await readRequestBody(req);
-        const worker = await workerRepository.addEntry(params.id, body);
-        if (!worker) {
-          this.sendError(res, 404, 'Funcionário não encontrado');
-          return;
-        }
-        // Envia a resposta JSON
-        this.sendJson(res, worker);
-      } catch (error) {
-        this.sendError(res, 400, `Erro ao adicionar registro: ${(error as Error).message}`);
-      }
-    });
-
-    // Rota de adicionar arquivo
-    this.addRoute('POST', '/workers/:id/files', async (req, res, params) => {
-      try {
-        const body = await readRequestBody(req);
-        const worker = await workerRepository.addFile(params.id, body);
-        if (!worker) {
-          this.sendError(res, 404, 'Funcionário não encontrado');
-          return;
-        }
-        this.sendJson(res, worker);
-      } catch (error) {
-        this.sendError(res, 400, `Erro ao adicionar arquivo: ${(error as Error).message}`);
-      }
-    });
-
-    // Rota de atualizar arquivo
-    this.addRoute('PUT', '/workers/:id/files/:fileId', async (req, res, params) => {
-      try {
-        const body = await readRequestBody(req);
-        const worker = await workerRepository.updateFile(params.id, params.fileId, body);
-        if (!worker) {
-          this.sendError(res, 404, 'Funcionário ou arquivo não encontrado');
-          return;
-        }
-        this.sendJson(res, worker);
-      } catch (error) {
-        this.sendError(res, 400, `Erro ao atualizar arquivo: ${(error as Error).message}`);
-      }
-    });
-
-    // Rota de remover arquivo
-    this.addRoute('DELETE', '/workers/:id/files/:fileId', async (req, res, params) => {
-      try {
-        const worker = await workerRepository.removeFile(params.id, params.fileId);
-        if (!worker) {
-          this.sendError(res, 404, 'Funcionário ou arquivo não encontrado');
-          return;
-        }
-        this.sendJson(res, worker);
-      } catch (error) {
-        this.sendError(res, 400, `Erro ao remover arquivo: ${(error as Error).message}`);
-      }
-    });
+  // Exibe as rotas disponíveis no console
+  private logAvailableRoutes(): void {
+    console.log(`📊 Endpoints disponíveis:`);
+    
+    // Rotas gerais
+    console.log(`\n🔹 Rotas gerais:`);
+    this.routes
+      .filter(r => !r.path.startsWith('/workers'))
+      .forEach(route => {
+        console.log(`   ${route.method.padEnd(6)} ${route.path}`);
+      });
+    
+    // Rotas de funcionários
+    console.log(`\n🔹 Rotas de funcionários:`);
+    this.routes
+      .filter(r => r.path.startsWith('/workers') && !r.path.includes('/files'))
+      .forEach(route => {
+        console.log(`   ${route.method.padEnd(6)} ${route.path}`);
+      });
+    
+    // Rotas de documentos
+    console.log(`\n🔹 Rotas de documentos:`);
+    this.routes
+      .filter(r => r.path.includes('/files'))
+      .forEach(route => {
+        console.log(`   ${route.method.padEnd(6)} ${route.path}`);
+      });
   }
 
   // Adiciona uma rota ao serviço
@@ -288,12 +179,6 @@ export class WorkerService {
   private sendError(res: http.ServerResponse, statusCode: number, message: string): void {
     res.writeHead(statusCode, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: message }));
-  }
-
-  // Envia uma resposta sem conteúdo (204)
-  private sendNoContent(res: http.ServerResponse): void {
-    res.writeHead(204);
-    res.end();
   }
 }
 

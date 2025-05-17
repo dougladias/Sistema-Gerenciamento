@@ -183,105 +183,7 @@ export const useWorker = () => {
     }
   }, []);
 
-  // Função para adicionar um arquivo
-  const addFile = useCallback(
-    async (
-      workerId: string,
-      file: {
-        filename: string;
-        originalName: string;
-        mimetype: string;
-        size: number;
-        fileContent: string; // Base64
-        description?: string;
-        category?: string;
-      }
-    ) => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const updatedWorker = await workerService.addFile(workerId, file);
-        setWorkers((prev) =>
-          prev.map((worker) => (worker._id === workerId ? updatedWorker : worker))
-        );
-        return updatedWorker;
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Erro ao adicionar arquivo';
-        setError(errorMessage);
-        return null;
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  // Função para atualizar informações de um arquivo
-  const updateFile = useCallback(
-    async (workerId: string, fileId: string, updates: { description?: string; category?: string }) => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const updatedWorker = await workerService.updateFile(workerId, fileId, updates);
-        setWorkers((prev) =>
-          prev.map((worker) => (worker._id === workerId ? updatedWorker : worker))
-        );
-        return updatedWorker;
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar arquivo';
-        setError(errorMessage);
-        return null;
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  // Função para remover um arquivo
-  const removeFile = useCallback(
-    async (workerId: string, fileId: string) => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const updatedWorker = await workerService.removeFile(workerId, fileId);
-        setWorkers((prev) =>
-          prev.map((worker) => (worker._id === workerId ? updatedWorker : worker))
-        );
-        return updatedWorker;
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Erro ao remover arquivo';
-        setError(errorMessage);
-        return null;
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  // Função para obter arquivos de um funcionário
-  const getWorkerFiles = useCallback(
-    async (workerId: string) => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const files = await workerService.getWorkerFiles(workerId);
-        return files;
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Erro ao buscar arquivos';
-        setError(errorMessage);
-        return [];
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
+  
 
   // Limpa erros
   const clearError = useCallback(() => {
@@ -302,11 +204,7 @@ export const useWorker = () => {
     updateWorker,
     deleteWorker,
     addEntry,
-    filterWorkers,
-    addFile,
-    updateFile,
-    removeFile,
-    getWorkerFiles,
+    filterWorkers,    
     clearError,
     
     // Utilitários

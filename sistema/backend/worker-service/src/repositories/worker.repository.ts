@@ -117,8 +117,12 @@ export class WorkerRepository implements IWorkerRepository {
     await connectToDatabase();
     const WorkerModel = createWorkerModel();
     return WorkerModel.findOneAndUpdate(
-      { _id: workerId, "files._id": fileId },
-      { $set: { "files.$": updates } },
+      { _id: workerId, 'files._id': fileId },
+      { $set: { 
+          'files.$.description': updates.description,
+          'files.$.category': updates.category
+        } 
+      },
       { new: true }
     ).exec();
   }

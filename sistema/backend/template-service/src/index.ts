@@ -32,13 +32,7 @@ async function startServer() {
     console.log(`📝 ${process.env.APP_NAME || 'API de Templates'}`);
     console.log(`📊 Endpoints disponíveis:`);
     console.log(`   GET  /             - Status da API`);
-    console.log(`   GET  /templates    - Listar templates`);
-    console.log(`   GET  /templates/:id - Buscar template por ID`);
-    console.log(`   GET  /templates/:id/download - Baixar arquivo do template`);
-    console.log(`   GET  /templates/type/:type - Buscar templates por tipo`);
-    console.log(`   POST /templates    - Criar template`);
-    console.log(`   PUT  /templates/:id - Atualizar template`);
-    console.log(`   DELETE /templates/:id - Excluir template`);
+    console.log(`   GET  /templates    - Listar templates`);   
   } catch (error) {
     console.error('❌ Erro ao iniciar o servidor:', error);
     process.exit(1);

@@ -24,7 +24,7 @@ export class PayrollService {
   private server: http.Server;
   private routes: Route[] = [];
 
-  constructor(private port: number = Number(process.env.PORT) || Number(process.env.PAYROLL_SERVICE_PORT) || 4016) {
+  constructor(private port: number = Number(process.env.PORT) || Number(process.env.PAYROLL_SERVICE_PORT) || 4013) {
     // Registra as rotas
     this.registerRoutes();
 

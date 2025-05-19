@@ -35,6 +35,7 @@ export const uploadRoutes = [
         await connectToDatabase();
         const body = await readRequestBody(req);
         
+        // Validar os dados do upload
         if (!body.data || !body.filename) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Dados incompletos. É necessário enviar data e filename' }));
@@ -154,7 +155,7 @@ export const uploadRoutes = [
               originalName: originalName,
               mimetype: contentType,
               size: buffer.length,
-              content: buffer,  // Armazenar o conteúdo binário diretamente no MongoDB
+              content: buffer,  
               uploadDate: new Date(),
               description: Array.isArray(req.headers['description']) ? req.headers['description'].join(', ') : req.headers['description'] || '',
               category: Array.isArray(req.headers['category']) ? req.headers['category'].join(', ') : req.headers['category'] || 'geral'

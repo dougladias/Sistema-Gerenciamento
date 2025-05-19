@@ -9,6 +9,7 @@ import {
 } from './config/env';
 import { handleWorkerRoutes } from './routes/worker.routes';
 import { handleDocumentRoutes } from './routes/document.routes';
+import { handleLogRoutes } from './routes/timeSheet.routes';
 import { handleTemplateRoutes } from './routes/template.routes';
 import { sendError } from './middlewares/errorHandler';
 import { checkTemplateService } from './services/templateServiceChecker';
@@ -56,6 +57,11 @@ export class SimpleApiGateway {
         return;
       }
 
+      // Tenta processar as rotas de Time Sheet (registro de ponto)
+      if (await handleLogRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
+        return;
+      }
+      
       // Tenta processar as rotas de workers
       if (await handleWorkerRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
         return;
@@ -97,7 +103,7 @@ async function startGateway() {
   
   // Exibe o status dos serviços
   console.log(`📊 Status dos serviços:`);  
-  console.log(`Serviço de Workers (inclui Documentos): ${workerServiceAvailable ? '✅ Online' : '❌ Offline'}`);
+  console.log(`Serviço de Workers (inclui Documentos e TimeSheet): ${workerServiceAvailable ? '✅ Online' : '❌ Offline'}`);
   console.log(`Serviço de Templates: ${templateServiceAvailable ? '✅ Online' : '❌ Offline'}`);
   
   // Inicia o gateway mesmo que alguns serviços estejam offline

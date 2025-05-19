@@ -1,5 +1,5 @@
 import { connectToDatabase } from '../config/database';
-import { IWorker, createWorkerModel, IFile } from '../models/worker.model';
+import { IWorker, createWorkerModel, IFile, IEntry } from '../models/worker.model';
 
 
 // Interface para o repositório de Workers
@@ -11,7 +11,9 @@ export interface IWorkerRepository {
   create(worker: Omit<IWorker, '_id'>): Promise<IWorker>;
   update(id: string, worker: Partial<IWorker>): Promise<IWorker | null>;
   delete(id: string): Promise<boolean>;
-  addEntry(workerId: string, entry: { entryTime?: Date; leaveTime?: Date; absent?: boolean }): Promise<IWorker | null>;
+  addEntry(workerId: string, entry: Partial<IEntry>): Promise<IWorker | null>;
+  updateEntry(workerId: string, logId: string, updates: Partial<IEntry>): Promise<IWorker | null>;
+  removeEntry(workerId: string, logId: string): Promise<IWorker | null>;
   addFile(workerId: string, file: IFile): Promise<IWorker | null>;
   updateFile(workerId: string, fileId: string, updates: Partial<IFile>): Promise<IWorker | null>;
   removeFile(workerId: string, fileId: string): Promise<IWorker | null>;
@@ -81,15 +83,15 @@ export class WorkerRepository implements IWorkerRepository {
   // Adiciona um registro de entrada/saída para o funcionário
   async addEntry(
     workerId: string, 
-    entry: { entryTime?: Date; leaveTime?: Date; absent?: boolean }
+    entry: Partial<IEntry>
   ): Promise<IWorker | null> {
     await connectToDatabase();
     const WorkerModel = createWorkerModel();
     
-    // Verifica se o registro de entrada/saída já existe
+    // Configura campos padrão se não fornecidos
     const entryData = {
       ...entry,
-      date: new Date(),
+      date: entry.date || new Date(),
       createdAt: new Date()
     };
     
@@ -97,6 +99,61 @@ export class WorkerRepository implements IWorkerRepository {
     return WorkerModel.findByIdAndUpdate(
       workerId,
       { $push: { logs: entryData } },
+      { new: true }
+    ).exec();
+  }
+
+  // Atualiza um registro de ponto
+  async updateEntry(workerId: string, logId: string, updates: Partial<IEntry>): Promise<IWorker | null> {
+    await connectToDatabase();
+    const WorkerModel = createWorkerModel();
+    
+    // Primeiro obter o trabalhador para verificar se o log existe
+    const worker = await this.findById(workerId);
+    if (!worker) return null;
+    
+    // Encontrar o índice do log
+    const logIndex = worker.logs.findIndex(log => log._id?.toString() === logId);
+    if (logIndex === -1) return null;
+    
+    // Preparar o caminho para cada campo que pode ser atualizado
+    const updateFields: any = {};
+    
+    // Atualizar os campos de entrada/saída
+    if (updates.entryTime !== undefined) {
+      updateFields[`logs.${logIndex}.entryTime`] = updates.entryTime;
+    }
+    
+    // Atualizar os campos de saída
+    if (updates.leaveTime !== undefined) {
+      updateFields[`logs.${logIndex}.leaveTime`] = updates.leaveTime;
+    }
+    
+    // Atualizar os campos de ausência
+    if (updates.absent !== undefined) {
+      updateFields[`logs.${logIndex}.absent`] = updates.absent;
+    }
+    
+    // Atualizar a data
+    if (updates.date !== undefined) {
+      updateFields[`logs.${logIndex}.date`] = updates.date;
+    }
+    
+    // Atualizar os campos específicos
+    return WorkerModel.findByIdAndUpdate(
+      workerId,
+      { $set: updateFields },
+      { new: true }
+    ).exec();
+  }
+
+  // Remove um registro de ponto
+  async removeEntry(workerId: string, logId: string): Promise<IWorker | null> {
+    await connectToDatabase();
+    const WorkerModel = createWorkerModel();
+    return WorkerModel.findByIdAndUpdate(
+      workerId,
+      { $pull: { logs: { _id: logId } } },
       { new: true }
     ).exec();
   }

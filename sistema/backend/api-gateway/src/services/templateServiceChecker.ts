@@ -4,13 +4,13 @@ import http from 'http';
 export async function checkTemplateService(host: string, port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const options = {
-      method: 'HEAD',
+      method: 'GET',
       host: host,
       port: port,
       timeout: 2000, 
     };
 
-    // Faz uma requisição HEAD para verificar se o serviço está disponível
+    // Faz uma requisição GET para verificar se o serviço está disponível
     const req = http.request(options, (res) => {
       resolve(res.statusCode === 200);
     });

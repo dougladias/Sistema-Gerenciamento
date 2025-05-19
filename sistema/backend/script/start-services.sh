@@ -1,4 +1,6 @@
 #!/bin/bash
+# filepath: /home/pedro/globoo-adm/backend/script/start-services.sh
+#!/bin/bash
 # Script para iniciar todos os microsserviços
 
 # Cores para saída no terminal
@@ -20,7 +22,6 @@ SERVICES=(
   "worker-service"  
   "template-service"
 
-
   #Sempre deixe o api-gateway por último
   # pois ele depende dos outros microsserviços
   "api-gateway"  
@@ -28,6 +29,9 @@ SERVICES=(
 
 # Armazenar PIDs dos processos
 declare -A SERVICE_PIDS
+
+# Flag para controlar se o monitor deve continuar executando
+MONITOR_RUNNING=true
 
 # Função para iniciar um serviço
 start_service() {
@@ -89,22 +93,68 @@ start_service() {
 stop_services() {
   echo -e "\n${YELLOW}Encerrando todos os serviços...${NC}"
   
+  # Parar o monitor
+  MONITOR_RUNNING=false
+  
   for service in "${!SERVICE_PIDS[@]}"; do
     local pid=${SERVICE_PIDS[$service]}
     if kill -0 $pid 2>/dev/null; then
       echo -e "Encerrando ${service} (PID: $pid)..."
       kill $pid
-      wait $pid 2>/dev/null
+      wait $pid 2>/dev/null || true
       echo -e "${GREEN}${service} encerrado.${NC}"
+    else
+      echo -e "${YELLOW}${service} (PID: $pid) já não está em execução.${NC}"
     fi
   done
   
+  # Verificar se há processos node órfãos e encerrar
+  local node_pids=$(ps aux | grep '[n]pm run dev' | awk '{print $2}')
+  if [ -n "$node_pids" ]; then
+    echo -e "${YELLOW}Encontrados processos Node.js órfãos. Encerrando...${NC}"
+    echo $node_pids | xargs kill -9 2>/dev/null || true
+  fi
+  
   echo -e "${GREEN}Todos os serviços foram encerrados.${NC}"
-  exit 0
+  
+  if [ "$1" != "noexit" ]; then
+    exit 0
+  fi
 }
 
-# Configura trap para capturar Ctrl+C
-trap stop_services INT
+# Função para monitorar os serviços em execução
+monitor_services() {
+  echo -e "${GREEN}Iniciando monitor de serviços...${NC}"
+  
+  while [ "$MONITOR_RUNNING" = true ]; do
+    local all_running=true
+    
+    # Verificar cada serviço
+    for service in "${!SERVICE_PIDS[@]}"; do
+      local pid=${SERVICE_PIDS[$service]}
+      
+      if ! kill -0 $pid 2>/dev/null; then
+        echo -e "\n${RED}Serviço $service (PID: $pid) foi encerrado inesperadamente!${NC}"
+        all_running=false
+        break
+      fi
+    done
+    
+    # Se algum serviço não estiver mais em execução, parar todos
+    if [ "$all_running" = false ]; then
+      echo -e "${YELLOW}Um serviço terminou inesperadamente. Encerrando todos os serviços...${NC}"
+      stop_services "noexit"
+      echo -e "${RED}Todos os serviços foram encerrados devido a uma falha. Verifique os logs para mais detalhes.${NC}"
+      exit 1
+    fi
+    
+    # Aguardar antes da próxima verificação
+    sleep 2
+  done
+}
+
+# Configura trap para capturar Ctrl+C e outras sinais de término
+trap stop_services INT TERM QUIT
 
 # Função principal
 main() {
@@ -138,12 +188,19 @@ main() {
     echo -e "${YELLOW}Alguns serviços não puderam ser iniciados. Verifique os logs.${NC}"
   fi
   
+  # Iniciar o monitor em background
+  monitor_services &
+  MONITOR_PID=$!
+  
   # Manter o script em execução e mostrar logs
   echo -e "\n${YELLOW}Pressione Ctrl+C para encerrar todos os serviços.${NC}"
-  echo -e "${YELLOW}Mostrando logs combinados:${NC}\n"
+  echo -e "${YELLOW}Mostrando logs combinados (os serviços serão encerrados automaticamente se qualquer um falhar):${NC}\n"
   
-  # CORREÇÃO: Usar aspas duplas ao redor do caminho completo
+  # Usar aspas duplas ao redor do caminho completo
   tail -f "${LOGS_DIR}"/*.log
+  
+  # Se chegamos aqui, tail foi interrompido
+  stop_services
 }
 
 # Executar a função principal

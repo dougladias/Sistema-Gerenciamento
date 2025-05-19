@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import Head from 'next/head';
 import { useWorker } from '@/hooks/useWorkers';
 import { Worker } from '@/types/worker';
 import Button from '@/components/ui/Button';
 import Alert from '@/components/ui/Alert';
 import Modal from '@/components/ui/Modal';
+import { motion, AnimatePresence } from "framer-motion";
 import {
   PlusIcon,
   PencilIcon,
@@ -15,7 +15,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 
-export default function Home() {
+export default function WorkersPage() {
   // Estados para controle da interface
   const [activeSection, setActiveSection] = useState<'list' | 'form' | 'details'>('list');
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
@@ -256,6 +256,27 @@ export default function Home() {
     if (isNaN(date.getTime())) return dateString;
     
     return date.toISOString().split('T')[0];
+  };
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { 
+        when: "beforeChildren",
+        staggerChildren: 0.1 
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { type: "spring", stiffness: 260, damping: 20 }
+    }
   };
 
   // Renderização condicional das seções
@@ -742,92 +763,117 @@ export default function Home() {
   };
 
   return (
-    <div>
-      <Head>
-        <title>Sistema de Gerenciamento de Funcionários</title>
-        <meta name="description" content="Sistema para gerenciar funcionários" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
+    <motion.div 
+      className="p-6 ml-[var(--sidebar-width,4.5rem)] transition-all duration-300 bg-gray-50 min-h-screen"
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      style={{ width: "calc(100% - var(--sidebar-width, 4.5rem))" }}
+    >
+      {/* Page header */}
+      <motion.div variants={itemVariants} className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-800">Gerenciamento de Funcionários</h1>
+        <p className="text-gray-500 mt-1">Cadastre, visualize e gerencie todos os funcionários da empresa</p>
+      </motion.div>
 
-      <div className="min-h-screen bg-gray-50 flex flex-col">
-        <header className="bg-white shadow">
-          <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-            <h1 className="text-3xl font-bold text-gray-900">
-              Sistema de Gerenciamento de Funcionários
-            </h1>
-          </div>
-        </header>
+      {/* Mensagens de sucesso/erro */}
+      <AnimatePresence>
+        {successMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mb-4"
+          >
+            <Alert
+              type="success"
+              message={successMessage}
+              onClose={() => setSuccessMessage('')}
+            />
+          </motion.div>
+        )}
+        
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mb-4"
+          >
+            <Alert
+              type="error"
+              message={error}
+              onClose={clearError}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* Main content with shadow and rounded corners */}
+      <motion.div 
+        variants={itemVariants}
+        className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100"
+      >
+        {renderContent()}
+      </motion.div>
 
-        <main className="flex-grow">
-          <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-            {/* Mensagens de sucesso/erro */}
-            {successMessage && (
-              <Alert
-                type="success"
-                message={successMessage}
-                className="mb-4"
-                onClose={() => setSuccessMessage('')}
-              />
-            )}
+      {/* Modal de confirmação de exclusão */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Confirmar Exclusão"
+        size="sm"
+        closeOnOutsideClick={true} // Changed to true to allow clicking outside to close
+        footer={
+          <div className="flex space-x-3">
+            {/* Remove the motion.div wrapper that's capturing clicks */}
+            <Button
+              variant="secondary"
+              onClick={() => setIsDeleteModalOpen(false)}
+              disabled={loading}
+              className="hover:scale-105 active:scale-95 transition-transform"
+            >
+              Cancelar
+            </Button>
             
-            {error && (
-              <Alert
-                type="error"
-                message={error}
-                className="mb-4"
-                onClose={clearError}
-              />
-            )}
-            
-            {/* Conteúdo principal */}
-            {renderContent()}
+            {/* Remove the motion.div wrapper that's capturing clicks */}
+            <Button
+              variant="danger"
+              onClick={handleDeleteConfirm}
+              isLoading={loading}
+              className="hover:scale-105 active:scale-95 transition-transform"
+            >
+              Excluir
+            </Button>
           </div>
-        </main>
-
-        <footer className="bg-white border-t border-gray-200">
-          <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-            <p className="text-center text-gray-500 text-sm">
-              Sistema de Gerenciamento de Funcionários &copy; {new Date().getFullYear()}
-            </p>
-          </div>
-        </footer>
-
-        {/* Modal de confirmação de exclusão */}
-        <Modal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          title="Confirmar Exclusão"
-          size="sm"
-          closeOnOutsideClick={false}
-          footer={
-            <>
-              <Button
-                variant="secondary"
-                onClick={() => setIsDeleteModalOpen(false)}
-                disabled={loading}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="danger"
-                onClick={handleDeleteConfirm}
-                isLoading={loading}
-              >
-                Excluir
-              </Button>
-            </>
-          }
+        }
+      >
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
         >
-          <div>
-            <p className="text-gray-700">
-              Tem certeza que deseja excluir o funcionário <strong>{currentWorker?.name}</strong>?
-            </p>
-            <p className="text-gray-700 mt-2">
-              Esta ação não pode ser desfeita.
-            </p>
+          <div className="flex flex-col items-center mb-4">
+            <motion.div 
+              className="bg-red-100 rounded-full p-3 text-red-500 mb-4"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", damping: 10 }}
+            >
+              <TrashIcon className="h-6 w-6" />
+            </motion.div>
           </div>
-        </Modal>
-      </div>
-    </div>
+          
+          <p className="text-gray-700 text-center">
+            Tem certeza que deseja excluir o funcionário <strong>{currentWorker?.name}</strong>?
+          </p>
+          <p className="text-gray-700 text-center mt-2 text-sm">
+            Esta ação não pode ser desfeita.
+          </p>
+        </motion.div>
+      </Modal>
+    </motion.div>
   );
 }

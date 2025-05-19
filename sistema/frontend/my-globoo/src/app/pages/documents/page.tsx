@@ -1,10 +1,29 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import apiService from '@/services/api';
 import { Worker, WorkerFile } from '@/types/worker';
 
 const DocumentsPage: React.FC = () => {
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { type: "spring", stiffness: 260, damping: 20 }
+    }
+  };
+
   // Estados
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
@@ -292,11 +311,19 @@ const DocumentsPage: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Gerenciamento de Documentos</h1>
+    <motion.div 
+      className="p-6 ml-[var(--sidebar-width,4.5rem)] transition-all duration-300 bg-gray-50 min-h-screen"
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      style={{ width: "calc(100% - var(--sidebar-width, 4.5rem))" }}
+    >
+      <motion.div variants={itemVariants}>
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">Gerenciamento de Documentos</h1>
+      </motion.div>
 
       {/* Seleção de funcionário */}
-      <div className="mb-6">
+      <motion.div className="mb-6" variants={itemVariants}>
         <label className="block mb-2 font-medium">Funcionário:</label>
         <select
           className="w-full border rounded p-2"
@@ -310,23 +337,29 @@ const DocumentsPage: React.FC = () => {
             </option>
           ))}
         </select>
-      </div>
+      </motion.div>
 
       {/* Mensagem de sucesso/erro */}
       {message.text && (
-        <div
+        <motion.div
           className={`mb-4 p-3 rounded ${
             message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
           }`}
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
         >
           {message.text}
-        </div>
+        </motion.div>
       )}
 
       {selectedWorkerId && (
         <>
           {/* Formulário de upload */}
-          <div className="mb-8 bg-white p-4 rounded-md shadow border">
+          <motion.div 
+            className="mb-8 bg-white p-4 rounded-md shadow border"
+            variants={itemVariants}
+          >
             <h2 className="text-xl font-semibold mb-4">Upload de Documento</h2>
             <form onSubmit={uploadDocument}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -373,25 +406,42 @@ const DocumentsPage: React.FC = () => {
               </div>
               
               <div className="mt-4">
-                <button
+                <motion.button
                   type="submit"
                   className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded"
                   disabled={loading}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                 >
                   {loading ? 'Enviando...' : 'Enviar Documento'}
-                </button>
+                </motion.button>
               </div>
             </form>
-          </div>
+          </motion.div>
 
           {/* Lista de documentos */}
-          <div className="bg-white p-4 rounded-md shadow border">
+          <motion.div 
+            className="bg-white p-4 rounded-md shadow border"
+            variants={itemVariants}
+          >
             <h2 className="text-xl font-semibold mb-4">Documentos do Funcionário</h2>
             
-            {loading && <div className="text-center py-4">Carregando...</div>}
+            {loading && (
+              <motion.div 
+                className="flex justify-center items-center py-8"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <motion.div 
+                  className="h-10 w-10 border-t-2 border-b-2 border-blue-500 rounded-full"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                />
+              </motion.div>
+            )}
             
             {!loading && workerFiles.length === 0 ? (
-              <div className="text-center py-4 text-gray-500">
+              <div className="text-center py-8 text-gray-500">
                 Nenhum documento encontrado para este funcionário.
               </div>
             ) : (
@@ -408,8 +458,15 @@ const DocumentsPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {workerFiles.map((file) => (
-                      <tr key={String(file._id)} className="hover:bg-gray-50">
+                    {workerFiles.map((file, index) => (
+                      <motion.tr 
+                        key={String(file._id)} 
+                        className="hover:bg-gray-50"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        {/* Table row content remains the same */}
                         <td className="border px-4 py-2">{file.originalName}</td>
                         <td className="border px-4 py-2">
                           {editingFileId === String(file._id) ? (
@@ -448,51 +505,60 @@ const DocumentsPage: React.FC = () => {
                         <td className="border px-4 py-2 text-center">
                           {editingFileId === String(file._id) ? (
                             <div className="flex justify-center space-x-2">
-                              <button
+                              <motion.button
                                 onClick={saveDocumentEdit}
                                 className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded"
                                 title="Salvar"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
                               >
                                 Salvar
-                              </button>                             
+                              </motion.button>                             
                             </div>
                           ) : (
                             <div className="flex justify-center space-x-2">
-                              <button
+                              <motion.button
                                 onClick={() => downloadDocument(file)}
                                 className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded"
                                 title="Download"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
                               >
                                 Download
-                              </button>                              
-                              <button
+                              </motion.button>                              
+                              <motion.button
                                 onClick={() => deleteDocument(String(file._id))}
                                 className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded"
                                 title="Excluir"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
                               >
                                 Excluir
-                              </button>
+                              </motion.button>
                             </div>
                           )}
                         </td>
-                      </tr>
+                      </motion.tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             )}
-          </div>
+          </motion.div>
         </>
       )}
 
       {!selectedWorkerId && (
-        <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-md">
-          <p className="text-yellow-700">
+        <motion.div 
+          className="bg-yellow-50 border border-yellow-100 p-8 rounded-md text-center"
+          variants={itemVariants}
+        >
+          <p className="text-yellow-700 text-lg">
             Selecione um funcionário para gerenciar seus documentos.
           </p>
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

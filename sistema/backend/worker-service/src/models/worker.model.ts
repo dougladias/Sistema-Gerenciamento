@@ -1,7 +1,8 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-// Interface para logs de entrada/saída
+// Interface para Time Sheet de Entrada/Saída
 export interface IEntry {
+  _id?: string;
   entryTime?: Date;
   leaveTime?: Date;
   absent?: boolean;
@@ -9,7 +10,7 @@ export interface IEntry {
   createdAt?: Date;
 }
 
-// Interface para arquivos
+// Interface para Document
 export interface IFile {
   _id?: string;
   filename: string;
@@ -73,7 +74,7 @@ const WorkerSchema = new Schema<IWorker>(
       enum: ["active", "inactive", "other"],
     },
 
-    // Campos para logs de entrada/saída
+    // Campos para Time Sheet de entrada/saída
     logs: [
       {
         entryTime: { type: Date },
@@ -115,5 +116,6 @@ export const createWorkerModel = () => {
   return mongoose.models.Worker || mongoose.model<IWorker>("Worker", WorkerSchema);
 };
 
+// Exportar o modelo Worker
 export default createWorkerModel;
 export { WorkerSchema };

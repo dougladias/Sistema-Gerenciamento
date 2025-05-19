@@ -73,7 +73,7 @@ const Modal: React.FC<ModalProps> = ({
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <div className="fixed inset-0 bg-black bg-opacity-30" />
+            <div className="fixed inset-0 bg-transparent bg-opacity-30" />
           </Transition.Child>
 
           {/* Trick to center modal content */}

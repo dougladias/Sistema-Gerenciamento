@@ -1,7 +1,8 @@
 // Tipo para registro de entrada/saída
 export interface Entry {
+  _id: string;
   entryTime?: Date;
-  leaveTime?: Date;
+  leaveTime?: Date;  
   absent?: boolean;
   date?: Date;
   createdAt?: Date;

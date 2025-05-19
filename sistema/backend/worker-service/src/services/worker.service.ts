@@ -3,6 +3,7 @@ import url from 'url';
 import dotenv from 'dotenv';
 import { workerRoutes } from '../routes/worker.routes';
 import { documentRoutes } from '../routes/document.routes';
+import { logRoutes } from '../routes/timeSheet.routes';
 
 // Carrega as variáveis de ambiente
 dotenv.config();
@@ -11,6 +12,7 @@ dotenv.config();
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'OPTIONS';
 type RouteHandler = (req: http.IncomingMessage, res: http.ServerResponse, params: any) => Promise<void>;
 
+// Interface para as rotas
 interface Route {
   method: HttpMethod;
   path: string;
@@ -54,6 +56,11 @@ export class WorkerService {
     documentRoutes.forEach(route => {
       this.addRoute(route.method as HttpMethod, route.path, route.handler);
     });
+
+    // Adiciona as rotas de logs (registro de ponto)
+    logRoutes.forEach(route => {
+      this.addRoute(route.method as HttpMethod, route.path, route.handler);
+    });
   }
 
   // Exibe as rotas disponíveis no console
@@ -71,7 +78,7 @@ export class WorkerService {
     // Rotas de funcionários
     console.log(`\n🔹 Rotas de funcionários:`);
     this.routes
-      .filter(r => r.path.startsWith('/workers') && !r.path.includes('/files'))
+      .filter(r => r.path.startsWith('/workers') && !r.path.includes('/files') && !r.path.includes('/logs'))
       .forEach(route => {
         console.log(`   ${route.method.padEnd(6)} ${route.path}`);
       });
@@ -80,6 +87,14 @@ export class WorkerService {
     console.log(`\n🔹 Rotas de documentos:`);
     this.routes
       .filter(r => r.path.includes('/files'))
+      .forEach(route => {
+        console.log(`   ${route.method.padEnd(6)} ${route.path}`);
+      });
+    
+    // Rotas de logs
+    console.log(`\n🔹 Rotas de registro de ponto:`);
+    this.routes
+      .filter(r => r.path.includes('/logs'))
       .forEach(route => {
         console.log(`   ${route.method.padEnd(6)} ${route.path}`);
       });

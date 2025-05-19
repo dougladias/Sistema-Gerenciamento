@@ -29,6 +29,8 @@ $RECYCLE.BIN/
 .Trash-*
 
 ### Linguagens e frameworks ###
+*.env
+*.env.local
 
 # Node.js
 node_modules/
@@ -65,13 +67,6 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Arquivos de configuração locais
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.secret
 
 # Pasta de dependências e build
 node_modules/

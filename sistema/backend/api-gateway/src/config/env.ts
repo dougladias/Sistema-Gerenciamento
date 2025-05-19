@@ -19,3 +19,6 @@ export const WORKER_SERVICE_URL = `http://${WORKER_SERVICE_HOST}:${WORKER_SERVIC
 
 // Configurações do serviço de documentos 
 export const DOCUMENT_SERVICE_URL = WORKER_SERVICE_URL;
+
+// Configurações do serviço de Time Sheet 
+export const TIMESHEET_SERVICE_URL = WORKER_SERVICE_URL;

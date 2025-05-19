@@ -68,12 +68,7 @@ const PayStubSchema = new Schema<IPayStub>(
     year: { 
       type: Number, 
       required: true 
-    },
-    documentNumber: { 
-      type: String, 
-      required: true,
-      unique: true
-    },
+    },    
     issueDate: { 
       type: Date, 
       required: true,
@@ -165,8 +160,6 @@ const PayStubSchema = new Schema<IPayStub>(
 PayStubSchema.index({ payrollId: 1 });
 PayStubSchema.index({ workerId: 1 });
 PayStubSchema.index({ month: 1, year: 1 });
-PayStubSchema.index({ documentNumber: 1 }, { unique: true });
-PayStubSchema.index({ workerId: 1, month: 1, year: 1 }, { unique: true });
 
 // Função para criar o modelo PayStub
 export const createPayStubModel = () => {

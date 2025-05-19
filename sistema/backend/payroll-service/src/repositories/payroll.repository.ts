@@ -514,6 +514,18 @@ export class PayrollRepository implements IPayrollRepository {
     
     return total;
   }
+
+  // Atualiza um campo específico no registro de pagamento
+  private async updateField(
+    payrollId: string,
+    field: 'deductions' | 'benefits' | 'additionals',
+    operation: '$push' | '$pull' | '$set',
+    value: any
+  ): Promise<IPayroll | null> {
+    const PayrollModel = createPayrollModel();
+    const update = { [operation]: { [field]: value } };
+    return PayrollModel.findByIdAndUpdate(payrollId, update, { new: true }).exec();
+  }
 }
 
 // Exporta uma instância única do repositório

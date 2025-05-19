@@ -10,7 +10,7 @@ import { payStubRoutes } from './controllers/payStub.controller';
 dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
 // Porta do serviço Payroll (garantindo que use 4013)
-const PORT = process.env.PAYROLL_SERVICE_PORT || 4013;
+const PORT = Number(process.env.PAYROLL_SERVICE_PORT) || 4013;
 
 // Tipos para o serviço HTTP
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'OPTIONS';
@@ -28,7 +28,7 @@ class PayrollService {
   private server: http.Server;
   private routes: Route[] = [];
 
-  constructor(private port: number = Number(PORT)) {
+  constructor(private port: number = PORT) {
     // Registra as rotas
     this.registerRoutes();
 

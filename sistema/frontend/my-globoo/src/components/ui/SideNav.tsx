@@ -102,6 +102,7 @@ export default function SideNav() {
         { href: "/pages/documents", label: "Gerenciar Documentos", icon: <HiDocumentText size={21} /> },
         { href: "/pages/templates", label: "Gerenciar Templates", icon: <HiTemplate size={21} /> },
         { href: "/pages/timeSheet", label: "Controle de Ponto", icon: <HiDocumentText size={21} /> },       
+        { href: "/pages/payroll", label: "Folha de Pagamento", icon: <HiDocumentText size={21} /> },       
     ];
     
     return (

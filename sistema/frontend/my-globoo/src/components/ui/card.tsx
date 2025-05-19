@@ -1,5 +1,5 @@
 import * as React from "react"
-import { cn } from "@/utils/utils"
+import { cn } from "@/lib/utils"
 
 // This is a component that renders a card with a header, title, description, action, content, and footer.
 function Card({ className, ...props }: React.ComponentProps<"div">) {

@@ -6,6 +6,7 @@ export interface Entry {
   absent?: boolean;
   date?: Date;
   createdAt?: Date;
+  
 }
 
 // Tipo para arquivo associado ao funcionário

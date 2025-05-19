@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Clock, X, Calendar, User, FileText } from "lucide-react";
-import { Entry, Worker } from "@/types/worker";
+import { Worker, Entry } from "@/types/worker";
 import useWorker from "@/hooks/useWorkers";
 import useLog from "@/hooks/useTimeSheet";
 
-// Adicione antes do componente TimeTrackingPage
+// Variantes para animação do container principal
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -18,86 +18,128 @@ const containerVariants = {
   }
 };
 
-// Funções de formatação de data - centralizadas para evitar duplicação
-const formatDateTime = (dateInput: string | Date | undefined | null) => {
+// Função para formatar data e hora
+const formatDateTime = (dateInput: string | Date | undefined | null): string => {
   if (!dateInput) return "Não registrada";
 
   try {
+    // Garantir que estamos trabalhando com um objeto Date
     const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+    
+    // Verificar se a data é válida
     if (isNaN(date.getTime())) return "Data inválida";
 
+    // Normalizar para o fuso horário local sem alterar a data/hora
     const formattedDate = date.toLocaleDateString("pt-BR");
     const formattedTime = date.toLocaleTimeString("pt-BR", {
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false // Garantir formato 24h para evitar confusões
     });
 
+    // Retornar a data e hora formatadas
     return `${formattedDate} às ${formattedTime}`;
   } catch (error) {
-    console.error("Error formatting date:", error);
+    console.error("Erro formatando data:", error);
     return "Erro no formato";
   }
 };
 
 // Função para formatar apenas a data
-const formatDate = (dateInput: string | Date | undefined | null) => {
+const formatDate = (dateInput: string | Date | undefined | null): string => {
   if (!dateInput) return "Não registrada";
 
-  // Verifica se a data é válida
   try {
+    // Garantir que estamos trabalhando com um objeto Date
     const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+    
+    // Verificar se a data é válida
     if (isNaN(date.getTime())) return "Data inválida";
-    return date.toLocaleDateString("pt-BR");
+    
+    // Usar opções específicas para garantir consistência
+    return date.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
   } catch (error) {
-    console.error("Error formatting date:", error);
+    console.error("Erro formatando data:", error);
     return "Erro no formato";
   }
 };
 
-// Modal de histórico de registros
-const LogHistoryModal = ({
-  isOpen,
-  onClose,
-  worker,
-}: {
+// Função para comparar se duas datas são do mesmo dia
+const isSameDay = (date1: Date | string | undefined | null, date2: Date | string | undefined | null): boolean => {
+  if (!date1 || !date2) return false;
+  
+  // Garantir que estamos trabalhando com objetos Date
+  const d1 = date1 instanceof Date ? date1 : new Date(date1);
+  const d2 = date2 instanceof Date ? date2 : new Date(date2);
+  
+  // Verificar se as datas são válidas
+  if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return false;
+  
+  // Comparar ano, mês e dia
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
+};
+
+// Componente para exibir o histórico de registros de ponto
+interface LogHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   worker: Worker;
-}) => {
+}
+
+// Componente para exibir o histórico de registros de ponto
+const LogHistoryModal: React.FC<LogHistoryModalProps> = ({ isOpen, onClose, worker }) => {
   const { logs, loading, fetchWorkerLogs } = useLog();
   
-  // Função para buscar os TimeSheet do trabalhador
+  // Busca os registros quando o modal é aberto
   useEffect(() => {
     if (isOpen && worker._id) {
       fetchWorkerLogs(worker._id);
     }
   }, [isOpen, worker._id, fetchWorkerLogs]);
 
-  // Agrupamento dos logs por data
-  const groupLogsByDate = () => {
+  // Função para agrupar logs por data
+  const groupLogsByDate = (): Record<string, Entry[]> => {
     const grouped: Record<string, Entry[]> = {};
 
     if (logs && logs.length > 0) {
       logs.forEach((log) => {
-        // Para logs de ausência, garantimos uma data válida para agrupar
-        let dateToUse;
+        // Determina qual data usar para agrupar
+        let dateToUse: string | Date;
 
-        if (log.absent) {
-          dateToUse = log.createdAt || log.entryTime || new Date().toISOString();
-        } else if (log.entryTime) {
+        // Prioriza a data efetiva do registro (entryTime para registros normais)
+        if (log.entryTime) {
           dateToUse = log.entryTime;
+        } else if (log.absent && log.createdAt) {
+          // Para ausências sem entrada, usa a data de criação
+          dateToUse = log.createdAt;
         } else {
-          // Ignorar logs sem data utilizável
-          return;
+          // Fallback para casos extremos
+          dateToUse = new Date().toISOString();
         }
-
+        
+        // Cria uma data com apenas ano, mês e dia para garantir consistência
         const date = new Date(dateToUse);
-        const dateKey = date.toISOString().split("T")[0]; // Formato YYYY-MM-DD
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const day = date.getDate();
+        
+        // Cria uma nova data às 12:00 para evitar problemas de fuso horário
+        const normalizedDate = new Date(year, month, day, 12, 0, 0);
+        const dateKey = normalizedDate.toISOString().split("T")[0]; // Formato YYYY-MM-DD
 
+        // Agrupa os logs pela data normalizada
         if (!grouped[dateKey]) {
           grouped[dateKey] = [];
         }
-
+        
         grouped[dateKey].push(log);
       });
     }
@@ -106,6 +148,7 @@ const LogHistoryModal = ({
   };
 
   const groupedLogs = groupLogsByDate();
+  // Ordena as datas do mais recente para o mais antigo
   const sortedDates = Object.keys(groupedLogs).sort(
     (a, b) => new Date(b).getTime() - new Date(a).getTime()
   );
@@ -183,25 +226,45 @@ const LogHistoryModal = ({
                         className="border rounded-lg overflow-hidden"
                       >
                         <div className="bg-gray-100 dark:bg-gray-800 px-4 py-2 font-medium">
-                          {new Date(dateKey).toLocaleDateString("pt-BR", {
-                            weekday: "long",
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
+                          {(() => {
+                            // Garantir que a data mostrada no cabeçalho corresponda às entradas
+                            // Pega a data do primeiro log deste grupo para exibição
+                            const dateForDisplay = groupedLogs[dateKey][0].entryTime || 
+                                                 groupedLogs[dateKey][0].createdAt || 
+                                                 dateKey;
+                            
+                            // Cria uma nova data normalizada para exibição consistente
+                            const date = new Date(dateForDisplay);
+                            return date.toLocaleDateString("pt-BR", {
+                              weekday: "long",
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            });
+                          })()}
                         </div>
                         <div className="divide-y">
                           {groupedLogs[dateKey].map((log, idx) => (
                             <div key={idx} className="px-4 py-3">
                               {log.absent ? (
-                                <div className="flex items-center text-yellow-600">
-                                  <FileText size={16} className="mr-2" />
-                                  <span className="font-medium">
-                                    Dia não trabalhado
-                                  </span>
-                                  <span className="text-gray-500 dark:text-gray-300 ml-2 text-sm">
-                                    {formatDate(log.createdAt || log.entryTime)}
-                                  </span>
+                                <div className="flex flex-col">
+                                  <div className="flex items-center text-yellow-600">
+                                    <FileText size={16} className="mr-2" />
+                                    <span className="font-medium">
+                                      Dia não trabalhado
+                                    </span>
+                                    <span className="text-gray-500 dark:text-gray-300 ml-2 text-sm">
+                                      {formatDate(log.createdAt || log.entryTime)}
+                                    </span>
+                                  </div>
+                                  {log.entryTime && (
+                                    <div className="flex items-center text-green-600 mt-1 ml-6">
+                                      <Clock size={16} className="mr-2" />
+                                      <span>
+                                        Entrada atrasada: {formatDateTime(log.entryTime)}
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
                                 <div className="space-y-2">
@@ -246,30 +309,55 @@ const LogHistoryModal = ({
   );
 };
 
-// Componente de linha da tabela
-const WorkerRow = ({
-  worker,
-  onCheckIn,
-  onCheckOut,
-  onFaltou,
-  onNameClick,
-}: {
+/**
+ * Props para o componente WorkerRow
+ */
+interface WorkerRowProps {
   worker: Worker;
   onCheckIn: (id: string) => void;
   onCheckOut: (id: string) => void;
   onFaltou: (id: string) => void;
   onNameClick: (worker: Worker) => void;
+}
+
+/**
+ * Componente que exibe uma linha da tabela com informações de um funcionário
+ */
+const WorkerRow: React.FC<WorkerRowProps> = ({
+  worker,
+  onCheckIn,
+  onCheckOut,
+  onFaltou,
+  onNameClick,
 }) => {
+  // Obtém o último registro de ponto do funcionário (se houver)
   const lastLog = worker.logs && worker.logs.length > 0
     ? worker.logs[worker.logs.length - 1]
     : null;
 
-  // Verifica se o último registro é de falta ou se não há registro
-  const checkInDisabled = !!(lastLog && !lastLog.leaveTime && !lastLog.absent);
-  const checkOutDisabled = !lastLog || lastLog.leaveTime !== undefined;
+  // Verifica se o último log é do dia atual
+  const isToday = lastLog ? isSameDay(new Date(), lastLog.entryTime || lastLog.createdAt) : false;
+  
+  // Define o estado dos botões
+  const checkInDisabled = !!(
+    // Desativa se já tem entrada sem saída no dia de hoje
+    (lastLog && !lastLog.leaveTime && isToday && !lastLog.absent) ||
+    // Ou se já foi marcado como presente hoje (tem entrada e saída)
+    (lastLog && lastLog.leaveTime && isToday && !lastLog.absent)
+  );
+  
+  // Só permite saída se há uma entrada sem saída no dia de hoje
+  const checkOutDisabled = !lastLog || lastLog.leaveTime !== undefined || !isToday || !!lastLog.absent;
 
-  const getStatus = () => {
+  /**
+   * Determina o status atual do funcionário
+   * @returns Status como string: "Ausente", "Presente", "Faltou" ou "Atrasado"
+   */
+  const getStatus = (): string => {
     if (!lastLog) return "Ausente";
+    
+    // Não está presente hoje
+    if (!isToday) return "Ausente";
     
     // Se há um registro de falta, mas também há um horário de entrada após a falta
     if (lastLog.absent === true && lastLog.entryTime) {
@@ -279,10 +367,14 @@ const WorkerRow = ({
     // Se há apenas o registro de falta (sem entrada)
     if (lastLog.absent === true) return "Faltou";
     
-    // Comportamento normal
+    // Se tem entrada mas não tem saída
     if (!lastLog.leaveTime) return "Presente";
+    
+    // Se tem entrada e saída no mesmo dia
     return "Ausente";
   };
+
+  const status = getStatus();
 
   return (
     <tr className="border-b hover:bg-gray-300 dark:hover:bg-gray-900">
@@ -306,7 +398,7 @@ const WorkerRow = ({
                   Dia não trabalhado: {formatDate(lastLog.createdAt || lastLog.entryTime)}
                 </span>
               </div>
-              {/* Adicionamos a exibição da entrada quando o funcionário chega após ser marcado como falta */}
+              {/* Mostra entrada atrasada se houver */}
               {lastLog.entryTime && (
                 <div className="flex items-center text-xs text-gray-600 dark:text-gray-300 mt-1">
                   <Clock size={12} className="mr-1" /> Entrada atrasada: {formatDateTime(lastLog.entryTime)}
@@ -336,16 +428,16 @@ const WorkerRow = ({
       <td className="py-3 px-4">
         <span
           className={`px-2 py-1 rounded-full text-xs font-medium ${
-            getStatus() === "Presente"
+            status === "Presente"
               ? "bg-green-100 text-green-800"
-              : getStatus() === "Faltou"
+              : status === "Faltou"
               ? "bg-yellow-100 text-yellow-800"
-              : getStatus() === "Atrasado"
+              : status === "Atrasado"
               ? "bg-orange-100 text-orange-800"
               : "bg-red-100 text-red-800"
           }`}
         >
-          {getStatus()}
+          {status}
         </span>
       </td>
       <td className="py-3 px-4">
@@ -384,10 +476,14 @@ const WorkerRow = ({
   );
 };
 
+/**
+ * Componente principal da página de controle de ponto
+ */
 const TimeTrackingPage: React.FC = () => {
+  // Estados locais
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
-  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [isLogModalOpen, setIsLogModalOpen] = useState<boolean>(false);
 
   // Usando hooks personalizados
   const { 
@@ -398,12 +494,21 @@ const TimeTrackingPage: React.FC = () => {
     addEntry 
   } = useWorker();
   
-  // Adicione o hook para atualização de registros
+  // Hook para atualização de registros
   const { updateLog } = useLog();
 
-  // Carrega os funcionários ao iniciar
+  // Carrega os funcionários ao iniciar e configura atualização periódica
   useEffect(() => {
     fetchWorkers();
+    
+    // Configura um intervalo para atualizar a lista a cada minuto
+    // para atualizar status/horários automaticamente
+    const intervalId = setInterval(() => {
+      fetchWorkers();
+    }, 60000); // 60 segundos
+    
+    // Limpa o intervalo ao desmontar o componente
+    return () => clearInterval(intervalId);
   }, [fetchWorkers]);
 
   // Ordenar os trabalhadores por nome
@@ -427,25 +532,43 @@ const TimeTrackingPage: React.FC = () => {
     );
   }, [sortedWorkers, searchTerm]);
 
-  // Handlers
-  const handleCheckIn = async (workerId: string) => {
+  /**
+   * Handler para registrar entrada de um funcionário
+   * @param workerId - ID do funcionário
+   */
+  const handleCheckIn = async (workerId: string): Promise<void> => {
     const worker = workers.find(w => w._id === workerId);
     const lastLog = worker?.logs && worker.logs.length > 0 ? worker.logs[worker.logs.length - 1] : null;
+    const now = new Date();
     
-    // Se o último registro for de falta, atualizamos esse mesmo registro incluindo o horário de entrada
-    if (lastLog && lastLog.absent === true) {
-      await addEntry(workerId, { 
-        entryTime: new Date(),
-        absent: true // Mantemos o registro de falta, apenas adicionamos o horário de entrada
+    // Verifica se já tem um registro de hoje
+    const isLastLogToday = lastLog ? isSameDay(now, lastLog.entryTime || lastLog.createdAt) : false;
+    
+    // Se o último registro for de falta hoje, atualizamos esse mesmo registro incluindo o horário de entrada
+    if (lastLog && lastLog.absent === true && isLastLogToday) {
+      // Garante que mantemos o ID original e atualizamos apenas o horário de entrada
+      await updateLog(workerId, lastLog._id as string, { 
+        entryTime: now
       });
     } else {
-      // Caso normal - apenas registra entrada
-      await addEntry(workerId, { entryTime: new Date() });
+      // Caso normal - registra entrada com a data/hora atual exata
+      await addEntry(workerId, { 
+        entryTime: now
+      });
     }
+    
+    // Atualiza a lista de funcionários
+    await fetchWorkers();
   };
 
-  const handleCheckOut = async (workerId: string) => {
+  /**
+   * Handler para registrar saída de um funcionário
+   * @param workerId - ID do funcionário
+   */
+  const handleCheckOut = async (workerId: string): Promise<void> => {
     const worker = workers.find(w => w._id === workerId);
+    const now = new Date();
+    
     // Encontrar o registro de entrada mais recente sem saída registrada
     const openEntryLog = worker?.logs?.find(log => 
       log.entryTime && !log.leaveTime && !log.absent
@@ -456,52 +579,75 @@ const TimeTrackingPage: React.FC = () => {
       const entryDate = openEntryLog.entryTime instanceof Date 
         ? openEntryLog.entryTime 
         : new Date(openEntryLog.entryTime || '');
-      const currentDate = new Date();
       
       // Comparar apenas as datas (ignorando as horas)
-      const isSameDay = 
-        entryDate.getDate() === currentDate.getDate() &&
-        entryDate.getMonth() === currentDate.getMonth() &&
-        entryDate.getFullYear() === currentDate.getFullYear();
+      const sameDayCheck = isSameDay(entryDate, now);
       
-      if (isSameDay) {
+      if (sameDayCheck) {
         // Se for no mesmo dia, apenas atualiza o registro existente
-        await updateLog(workerId, openEntryLog._id, { 
-          leaveTime: new Date() 
+        await updateLog(workerId, openEntryLog._id as string, { 
+          leaveTime: now 
         });
       } else {
         // Se for em dias diferentes, criamos dois registros:
         // 1. Fechamos o registro de entrada com saída no mesmo dia (fim do expediente)
-        const entryDayEnd = new Date(entryDate);
-        entryDayEnd.setHours(23, 59, 59);
-        await updateLog(workerId, openEntryLog._id, { 
+        const entryDayEnd = new Date(
+          entryDate.getFullYear(),
+          entryDate.getMonth(),
+          entryDate.getDate(),
+          23, 59, 59
+        );
+        
+        await updateLog(workerId, openEntryLog._id as string, { 
           leaveTime: entryDayEnd
         });
         
         // 2. Criamos um novo registro para o dia atual
-        const todayStart = new Date(currentDate);
-        todayStart.setHours(0, 0, 0);
+        const todayStart = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          0, 0, 0
+        );
+        
         await addEntry(workerId, { 
           entryTime: todayStart,
-          leaveTime: currentDate
+          leaveTime: now
         });
       }
-      
-      // Recarregar dados após atualização
-      await fetchWorkers();
     } else {
-      // Fallback para comportamento atual (não ideal)
-      await addEntry(workerId, { leaveTime: new Date() });
+      // Fallback - se não houver entrada, cria um registro apenas com saída
+      await addEntry(workerId, { 
+        leaveTime: now,
+        entryTime: new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      });
     }
+    
+    // Recarregar dados após atualização
+    await fetchWorkers();
   };
 
-  const handleFaltou = async (workerId: string) => {
-    await addEntry(workerId, { absent: true });
+  /**
+   * Handler para registrar falta de um funcionário
+   * @param workerId - ID do funcionário
+   */
+  const handleFaltou = async (workerId: string): Promise<void> => {
+    const now = new Date();
+    await addEntry(workerId, { 
+      absent: true,
+      entryTime: now, // Usando 'now' como data de referência para a falta
+    });
+    
+    // Recarregar dados após atualização
+    await fetchWorkers();
   };
-
-  const handleNameClick = (worker: Worker) => {
+  /**
+   * Handler para abrir o modal de histórico de um funcionário
+   * @param worker - Objeto do funcionário
+   */
+  const handleNameClick = (worker: Worker): void => {
     if (worker._id) {
-      setSelectedWorkerId(worker._id);
+      setSelectedWorkerId(worker._id as string);
       setIsLogModalOpen(true);
     }
   };
@@ -535,70 +681,72 @@ const TimeTrackingPage: React.FC = () => {
         </div>
       </div>
 
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="bg-gray-100 dark:bg-gray-900 rounded text-gray-700">
-            <th className="py-2 px-4 text-left dark:text-gray-300">Nome</th>
-            <th className="py-2 px-4 text-left dark:text-gray-300">Cargo</th>
-            <th className="py-2 px-4 text-left dark:text-gray-300">Registro de Ponto</th>
-            <th className="py-2 px-4 text-left dark:text-gray-300">Status</th>
-            <th className="py-2 px-4 text-left dark:text-gray-300">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {workersLoading ? (
-            <tr>
-              <td colSpan={5} className="py-8 text-center">
-                <div className="flex flex-col items-center justify-center">
-                  <motion.div
-                    className="w-12 h-12 mb-3 border-4 border-gray-200 rounded-full"
-                    style={{ borderTopColor: "#22d3ee" }}
-                    animate={{ rotate: 360 }}
-                    transition={{
-                      duration: 1,
-                      repeat: Infinity,
-                      ease: "linear",
-                    }}
-                  />
-                  <motion.span
-                    className="text-cyan-400 font-medium"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.3 }}
-                  >
-                    Carregando dados...
-                  </motion.span>
-                </div>
-              </td>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-2">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-gray-100 dark:bg-gray-900 rounded text-gray-700">
+              <th className="py-2 px-4 text-left dark:text-gray-300">Nome</th>
+              <th className="py-2 px-4 text-left dark:text-gray-300">Cargo</th>
+              <th className="py-2 px-4 text-left dark:text-gray-300">Registro de Ponto</th>
+              <th className="py-2 px-4 text-left dark:text-gray-300">Status</th>
+              <th className="py-2 px-4 text-left dark:text-gray-300">Ações</th>
             </tr>
-          ) : workersError ? (
-            <tr>
-              <td colSpan={5} className="py-4 text-center text-red-500">
-                Erro: {workersError}
-              </td>
-            </tr>
-          ) : filteredWorkers.length === 0 ? (
-            <tr>
-              <td colSpan={5} className="py-4 text-center text-gray-600">
-                {searchTerm
-                  ? "Nenhum funcionário encontrado com esse termo de busca."
-                  : "Nenhum funcionário encontrado."}
-              </td>
-            </tr>
-          ) : (
-            filteredWorkers.map((worker) => (
-              <WorkerRow
-                key={worker._id}
-                worker={worker}
-                onCheckIn={handleCheckIn}
-                onCheckOut={handleCheckOut}
-                onFaltou={handleFaltou}
-                onNameClick={handleNameClick}
-              />
-            ))
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {workersLoading ? (
+              <tr>
+                <td colSpan={5} className="py-8 text-center">
+                  <div className="flex flex-col items-center justify-center">
+                    <motion.div
+                      className="w-12 h-12 mb-3 border-4 border-gray-200 rounded-full"
+                      style={{ borderTopColor: "#22d3ee" }}
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        duration: 1,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                    />
+                    <motion.span
+                      className="text-cyan-400 font-medium"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      Carregando dados...
+                    </motion.span>
+                  </div>
+                </td>
+              </tr>
+           ) : workersError ? (
+  <tr>
+    <td colSpan={5} className="py-4 text-center text-red-500">
+      Erro: {workersError}
+    </td>
+  </tr>
+) : filteredWorkers.length === 0 ? (
+  <tr>
+    <td colSpan={5} className="py-4 text-center text-gray-600">
+      {searchTerm
+        ? "Nenhum funcionário encontrado com esse termo de busca."
+        : "Nenhum funcionário encontrado."}
+    </td>
+  </tr>
+) : (
+  filteredWorkers.map((worker) => (
+    <WorkerRow
+      key={worker._id as string}
+      worker={worker}
+      onCheckIn={handleCheckIn}
+      onCheckOut={handleCheckOut}
+      onFaltou={handleFaltou}
+      onNameClick={handleNameClick}
+    />
+  ))
+)}
+          </tbody>
+        </table>
+      </div>
 
       {/* Modal para exibir histórico de ponto */}
       {selectedWorker && (

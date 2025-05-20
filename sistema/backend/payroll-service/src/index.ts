@@ -39,8 +39,12 @@ async function startServer() {
       const url = req.url || '/';
       const method = req.method || 'GET';
       
+      // Extrair o caminho base sem parâmetros de consulta
+      const urlObj = new URL(url, `http://${HOST}:${PORT}`);
+      const path = urlObj.pathname; // Apenas o caminho sem query parameters
+      
       // Rota de status/saúde da API
-      if (url === '/health' && method === 'GET') {
+      if (path === '/health' && method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ 
           status: 'OK', 
@@ -54,26 +58,16 @@ async function startServer() {
       let handled = false;
       
       for (const route of allRoutes) {
-        // Verifica se o método corresponde
-        if (route.method !== method) continue;
-        
-        // Verifica padrões de rota simples e com parâmetros
-        const routePattern = routeToRegex(route.path);
-        const match = url.match(routePattern);
-        
-        if (match) {
-          // Extrai parâmetros da URL
-          const params = extractParams(route.path, url);
-          
-          // Executa o handler
+        if (route.method === method && routeToRegex(route.path).test(path)) { 
+          const params = extractParams(route.path, path);
           try {
+            // Passa a URL original para que o handler tenha acesso aos query parameters
             await route.handler(req, res, params);
           } catch (error) {
             console.error(`Erro não tratado na rota ${route.path}:`, error);
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Erro interno do servidor' }));
           }
-          
           handled = true;
           break;
         }

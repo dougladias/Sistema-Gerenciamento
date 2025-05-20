@@ -4,6 +4,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import apiService from '@/services/api';
 import { Worker, WorkerFile } from '@/types/worker';
+import Modal from '@/components/ui/Modal';
+import Button from '@/components/ui/Button';
+import { TrashIcon } from '@heroicons/react/24/outline';
 
 const DocumentsPage: React.FC = () => {
   // Animation variants
@@ -45,6 +48,10 @@ const DocumentsPage: React.FC = () => {
     description: '',
     category: 'OUTROS',
   });
+
+  // Estados para exclusão de documento
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<WorkerFile | null>(null);
 
   // Função para buscar todos os funcionários
   const fetchWorkers = useCallback(async () => {
@@ -230,24 +237,26 @@ const DocumentsPage: React.FC = () => {
   };
 
   // Função para excluir documento
-  const deleteDocument = async (fileId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este documento?')) return;
-    
-    if (!selectedWorkerId) return;
-    
+  const handleDeleteClick = (file: WorkerFile) => {
+    setFileToDelete(file);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Função para confirmar exclusão de documento
+  const confirmDeleteDocument = async () => {
+    if (!fileToDelete || !selectedWorkerId) return;
     setLoading(true);
     try {
-      await apiService.delete(`/workers/${selectedWorkerId}/files/${fileId}`);
-      
-      // Atualiza a lista de documentos
+      await apiService.delete(`/workers/${selectedWorkerId}/files/${fileToDelete._id}`);
       fetchWorkerFiles(selectedWorkerId);
-      
       setMessage({ text: 'Documento excluído com sucesso!', type: 'success' });
     } catch (error) {
       console.error("Erro ao excluir documento:", error);
       setMessage({ text: 'Erro ao excluir documento', type: 'error' });
     } finally {
       setLoading(false);
+      setIsDeleteModalOpen(false);
+      setFileToDelete(null);
     }
   };
 
@@ -385,7 +394,7 @@ const DocumentsPage: React.FC = () => {
                   <label className="block mb-1 font-medium text-gray-800 dark:text-gray-200">Categoria:</label>
                   <select
                     name="category"
-                    className="w-full border rounded p-2 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    className="p-4 w-full border rounded p-2 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                     value={uploadFormData.category}
                     onChange={handleUploadFormChange}
                   >
@@ -528,7 +537,7 @@ const DocumentsPage: React.FC = () => {
                                 Download
                               </motion.button>                              
                               <motion.button
-                                onClick={() => deleteDocument(String(file._id))}
+                                onClick={() => handleDeleteClick(file)}
                                 className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded dark:bg-red-700 dark:hover:bg-red-800"
                                 title="Excluir"
                                 whileHover={{ scale: 1.05 }}
@@ -559,6 +568,58 @@ const DocumentsPage: React.FC = () => {
           </p>
         </motion.div>
       )}
+
+      {/* Modal de confirmação de exclusão */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Confirmar Exclusão"
+        size="sm"
+        closeOnOutsideClick={true}
+        footer={
+          <div className="flex space-x-3">
+            <Button
+              variant="secondary"
+              onClick={() => setIsDeleteModalOpen(false)}
+              disabled={loading}
+              className="hover:scale-105 active:scale-95 transition-transform"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              onClick={confirmDeleteDocument}
+              isLoading={loading}
+              className="hover:scale-105 active:scale-95 transition-transform"
+            >
+              Excluir
+            </Button>
+          </div>
+        }
+      >
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+        >
+          <div className="flex flex-col items-center mb-4">
+            <motion.div 
+              className="bg-red-100 rounded-full p-3 text-red-500 mb-4"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", damping: 10 }}
+            >
+              <TrashIcon className="h-6 w-6" />
+            </motion.div>
+          </div>
+          <p className="text-gray-700 text-center">
+            Tem certeza que deseja excluir o documento <strong>{fileToDelete?.originalName}</strong>?
+          </p>
+          <p className="text-gray-700 text-center mt-2 text-sm">
+            Esta ação não pode ser desfeita.
+          </p>
+        </motion.div>
+      </Modal>
     </motion.div>
   );
 };

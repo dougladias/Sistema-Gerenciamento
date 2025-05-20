@@ -63,22 +63,28 @@ export const payrollRoutes = [
     path: '/payrolls',
     handler: async (req: http.IncomingMessage, res: http.ServerResponse) => {
       try {
-        // Extrair parâmetros de query
+        // Extrai os parâmetros da query string
         const url = new URL(req.url || '', `http://${req.headers.host}`);
-        const page = parseInt(url.searchParams.get('page') || '1');
-        const limit = parseInt(url.searchParams.get('limit') || '10');
-        
-        // Verifica se os parâmetros são válidos
-        const result = await payrollService.listPayrolls(page, limit);
-        
-        // Retorna a lista de folhas de pagamento
+        const page = parseInt(url.searchParams.get('page') || '1', 10);
+        const limit = parseInt(url.searchParams.get('limit') || '10', 10);
+
+        // Busca as folhas de pagamento no serviço
+        const payrollsData = await payrollService.listPayrolls(page, limit);
+
+        // Retorna os dados no formato esperado
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(result));
+        res.end(JSON.stringify({
+          payrolls: payrollsData.payrolls,
+          total: payrollsData.total,
+          page,
+          pages: Math.ceil(payrollsData.total / limit),
+        }));
       } catch (error: any) {
+        console.error('Erro ao listar folhas de pagamento:', error);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: error.message }));
       }
-    }
+    },
   },
   
   // Obter uma folha de pagamento

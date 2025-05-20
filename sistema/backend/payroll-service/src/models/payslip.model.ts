@@ -3,12 +3,12 @@ import mongoose, { Schema, Document } from 'mongoose';
 // Definição do tipo de funcionário
 export enum EmployeeType {
   CLT = 'CLT',
-  CNPJ = 'CNPJ'
+  PJ = 'PJ' // Adicionado 'PJ'
 }
 
 // Definição do status do holerite
 export enum PayslipStatus {
-  PENDING = 'pending',
+  DRAFT = 'draft',
   PROCESSED = 'processed',
   PAID = 'paid'
 }
@@ -68,7 +68,7 @@ const PayslipSchema = new Schema({
   workerId: { type: String, required: true },
   employeeType: {
     type: String,
-    enum: Object.values(EmployeeType),
+    enum: Object.values(EmployeeType), // Isso agora incluirá 'PJ'
     required: true
   },
 
@@ -84,7 +84,7 @@ const PayslipSchema = new Schema({
   status: {
     type: String,
     enum: Object.values(PayslipStatus),
-    default: PayslipStatus.PENDING
+    default: PayslipStatus.DRAFT
   },
   // Data de pagamento
   paymentDate: Date,

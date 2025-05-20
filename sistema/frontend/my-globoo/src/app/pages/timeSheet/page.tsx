@@ -654,7 +654,9 @@ const TimeTrackingPage: React.FC = () => {
 
   return (
     <motion.div 
-      className="p-6 ml-[var(--sidebar-width,4.5rem)] transition-all duration-300 bg-gray-50 min-h-screen"
+      className="p-6 ml-[var(--sidebar-width,4.5rem)] transition-all duration-300 min-h-screen
+      bg-gradient-to-br from-gray-50 via-white to-gray-100
+      dark:bg-gradient-to-br dark:from-gray-950 dark:via-gray-900 dark:to-gray-950"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
@@ -662,18 +664,18 @@ const TimeTrackingPage: React.FC = () => {
     >
       <div className="flex justify-between items-center mb-6">
         <div className="flex flex-col">
-          <h2 className="text-2xl font-bold text-black dark:text-white">Controle de Ponto</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow">Controle de Ponto</h2>
           <p className="text-gray-600 dark:text-gray-400">
             Registro de entradas e saídas dos funcionários
           </p>
         </div>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-            <Search size={18} className="text-gray-400" />
+            <Search size={18} className="text-gray-400 dark:text-gray-500 relative right-10" />
           </div>
           <input
             type="text"
-            className="bg-white dark:bg-gray-800 border border-gray-300 text-gray-900 dark:text-gray-300 text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block pl-10 p-2.5 transition-all duration-200 focus:w-64 w-48"
+            className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-200 text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block pl-10 p-2.5 transition-all duration-200 focus:w-64 w-48 shadow-sm dark:shadow-none"
             placeholder="Buscar funcionário..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -681,15 +683,15 @@ const TimeTrackingPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-2">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg dark:shadow-cyan-900/10 p-2 border border-gray-100 dark:border-gray-800/60">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-gray-100 dark:bg-gray-900 rounded text-gray-700">
-              <th className="py-2 px-4 text-left dark:text-gray-300">Nome</th>
-              <th className="py-2 px-4 text-left dark:text-gray-300">Cargo</th>
-              <th className="py-2 px-4 text-left dark:text-gray-300">Registro de Ponto</th>
-              <th className="py-2 px-4 text-left dark:text-gray-300">Status</th>
-              <th className="py-2 px-4 text-left dark:text-gray-300">Ações</th>
+            <tr className="bg-gray-100 dark:bg-gray-800/80 rounded text-gray-700 dark:text-gray-200">
+              <th className="py-2 px-4 text-left font-semibold">Nome</th>
+              <th className="py-2 px-4 text-left font-semibold">Cargo</th>
+              <th className="py-2 px-4 text-left font-semibold">Registro de Ponto</th>
+              <th className="py-2 px-4 text-left font-semibold">Status</th>
+              <th className="py-2 px-4 text-left font-semibold">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -698,7 +700,7 @@ const TimeTrackingPage: React.FC = () => {
                 <td colSpan={5} className="py-8 text-center">
                   <div className="flex flex-col items-center justify-center">
                     <motion.div
-                      className="w-12 h-12 mb-3 border-4 border-gray-200 rounded-full"
+                      className="w-12 h-12 mb-3 border-4 border-gray-200 dark:border-gray-700 rounded-full"
                       style={{ borderTopColor: "#22d3ee" }}
                       animate={{ rotate: 360 }}
                       transition={{
@@ -718,32 +720,32 @@ const TimeTrackingPage: React.FC = () => {
                   </div>
                 </td>
               </tr>
-           ) : workersError ? (
-  <tr>
-    <td colSpan={5} className="py-4 text-center text-red-500">
-      Erro: {workersError}
-    </td>
-  </tr>
-) : filteredWorkers.length === 0 ? (
-  <tr>
-    <td colSpan={5} className="py-4 text-center text-gray-600">
-      {searchTerm
-        ? "Nenhum funcionário encontrado com esse termo de busca."
-        : "Nenhum funcionário encontrado."}
-    </td>
-  </tr>
-) : (
-  filteredWorkers.map((worker) => (
-    <WorkerRow
-      key={worker._id as string}
-      worker={worker}
-      onCheckIn={handleCheckIn}
-      onCheckOut={handleCheckOut}
-      onFaltou={handleFaltou}
-      onNameClick={handleNameClick}
-    />
-  ))
-)}
+            ) : workersError ? (
+              <tr>
+                <td colSpan={5} className="py-4 text-center text-red-500 dark:text-red-400">
+                  Erro: {workersError}
+                </td>
+              </tr>
+            ) : filteredWorkers.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-4 text-center text-gray-600 dark:text-gray-400">
+                  {searchTerm
+                    ? "Nenhum funcionário encontrado com esse termo de busca."
+                    : "Nenhum funcionário encontrado."}
+                </td>
+              </tr>
+            ) : (
+              filteredWorkers.map((worker) => (
+                <WorkerRow
+                  key={worker._id as string}
+                  worker={worker}
+                  onCheckIn={handleCheckIn}
+                  onCheckOut={handleCheckOut}
+                  onFaltou={handleFaltou}
+                  onNameClick={handleNameClick}
+                />
+              ))
+            )}
           </tbody>
         </table>
       </div>

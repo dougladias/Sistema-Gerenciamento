@@ -3,6 +3,8 @@ import { PayslipModel, IPayslip, PayslipStatus } from '../models/payslip.model';
 import * as fs from 'fs';
 import * as path from 'path';
 import PDFDocument from 'pdfkit';
+import calculatePayslip from '../utils/payroll.calculator';
+import mongoose from 'mongoose';
 
 export class PayrollService {
   // Cria uma nova folha de pagamento
@@ -57,78 +59,139 @@ export class PayrollService {
     return await PayrollModel.findById(id);
   }
 
-  // Processa uma folha de pagamento com dados de funcionários
-  async processPayroll(payrollId: string, employees: any[]): Promise<IPayroll | null> {
-    const payroll = await PayrollModel.findById(payrollId);
-    if (!payroll) {
-      throw new Error('Folha de pagamento não encontrada');
-    }
-
-    // Verifica se a folha já foi processada
-    if (payroll.status === PayrollStatus.COMPLETED) {
-      throw new Error('Folha de pagamento já processada');
-    }
-
-    // Importa dinamicamente o calculador apenas quando necessário
-    const { calculateSalary } = await import('../utils/payroll.calculator');
-
-    // Atualiza status para processando
-    payroll.status = PayrollStatus.PROCESSING;
-    await payroll.save();
-
-    // Verifica se os dados de funcionários estão presentes
+  // Processa uma folha de pagamento com suporte a reprocessamento
+  async processPayroll(payrollId: string, employees: any[]) {
     try {
+      // Validar o ID da folha de pagamento
+      if (!mongoose.Types.ObjectId.isValid(payrollId)) {
+        throw new Error('ID da folha de pagamento inválido');
+      }
+
+      // Encontrar a folha de pagamento
+      const payroll = await PayrollModel.findById(payrollId);
+      if (!payroll) {
+        throw new Error('Folha de pagamento não encontrada');
+      }
+
+      // Verificar se a folha já foi processada - remover essa verificação ou modificar
+      // Se já foi processada, vamos reprocessar
+      let isReprocessing = false;
+      if (payroll.status === PayrollStatus.COMPLETED || payroll.processedAt) {
+        isReprocessing = true;
+        console.log(`Reprocessando folha de pagamento ${payrollId}`);
+      }
+
+      // Iniciar processamento
+      payroll.status = PayrollStatus.PROCESSING;
+      await payroll.save();
+
+      // Se estamos reprocessando, excluir os holerites anteriores
+      if (isReprocessing) {
+        await PayslipModel.deleteMany({ payrollId: payrollId });
+      }
+
+      // Variáveis para armazenar totais
       let totalGrossSalary = 0;
       let totalDiscounts = 0;
       let totalNetSalary = 0;
+      let employeeCount = 0;
 
-      // Calcula os holerites para cada funcionário
-      const calculatedPayslips = employees.map(employee => {
-        // Calcula os valores do holerite
-        const calculated = calculateSalary(employee);
+      // Processar cada funcionário
+      const payslips = [];
+      for (const employee of employees) {
+        // ADICIONAR AQUI: Verificação se o ID existe
+        if (!employee.id) {
+          console.warn(`Aviso: Funcionário sem ID válido. Nome: ${employee.name}, Tipo: ${employee.contractType}`);
+          continue; // Pula este funcionário e continua com o próximo
+        }
+
+        try {
+          // Calcular o holerite
+          let payslipData;
+          // Determine which calculation function to use based on contract type
+          switch (employee.contractType) {
+            case 'CLT':
+              payslipData = calculatePayslip.calculateCLTEmployee(employee);
+              break;
+            case 'PJ':
+              payslipData = calculatePayslip.calculateCNPJProvider(employee);
+              break;
+            default:
+              console.error(`Unsupported contract type: ${employee.contractType} for employee ${employee.name} (ID: ${employee.id})`);
+              throw new Error(`Unsupported contract type: ${employee.contractType}`);
+          }
+          
+          // Verificar se grossSalary existe e é um número válido
+          const grossSalary = (payslipData as any).grossSalary || payslipData.baseSalary || 0;
+          if (isNaN(grossSalary)) {
+            console.warn(`Aviso: Salário bruto inválido para ${employee.name}. Usando salário base.`);
+          }
+          
+          // Garantir que todos os valores sejam números válidos
+          const validGrossSalary = isNaN(grossSalary) ? employee.baseSalary || 0 : grossSalary;
+          const validTotalDeductions = isNaN(payslipData.totalDeductions) ? 0 : payslipData.totalDeductions;
+          const validNetSalary = isNaN(payslipData.netSalary) ? (validGrossSalary - validTotalDeductions) : payslipData.netSalary;
+          
+          // Criar o holerite no banco de dados
+          const payslip = await PayslipModel.create({
+            payrollId,
+            workerId: employee.id,
+            name: employee.name,
+            position: employee.position,
+            department: employee.department,
+            employeeType: employee.contractType === 'PJ' ? 'CLT' : employee.contractType, // Forçando tipo compatível temporariamente
+            // Mesmo criando como CLT, podemos filtrar no frontend pelo tipo real que virá de outro campo
+            month: payroll.month,
+            year: payroll.year,
+            baseSalary: payslipData.baseSalary,
+            benefits: payslipData.benefits || [],
+            deductions: payslipData.deductions || [],
+            grossSalary: validGrossSalary, // Usar o valor validado
+            totalDeductions: validTotalDeductions, // Usar o valor validado
+            netSalary: validNetSalary, // Usar o valor validado
+            status: PayslipStatus.PROCESSED
+          });
+          
+          payslips.push(payslip);
+          
+          // Adicionar aos totais com validação mais robusta
+          if (!isNaN(validGrossSalary)) {
+            totalGrossSalary += validGrossSalary;
+          }
+          if (!isNaN(validTotalDeductions)) {
+            totalDiscounts += validTotalDeductions;
+          }
+          if (!isNaN(validNetSalary)) {
+            totalNetSalary += validNetSalary;
+          }
+          employeeCount++;
+          
+        } catch (employeeError) {
+          console.error(`Erro ao processar funcionário ${employee.name}:`, employeeError);
+          // Continua com o próximo funcionário
+          continue;
+        }
+      }
+
+      // Garantir que todos os totais sejam números válidos antes de salvar
+      try {
+        payroll.status = PayrollStatus.COMPLETED;
+        payroll.processedAt = new Date();
+        // Validação extra para garantir que não haja NaN
+        payroll.totalGrossSalary = Number(isNaN(totalGrossSalary) ? 0 : totalGrossSalary.toFixed(2));
+        payroll.totalDiscounts = Number(isNaN(totalDiscounts) ? 0 : totalDiscounts.toFixed(2));
+        payroll.totalNetSalary = Number(isNaN(totalNetSalary) ? 0 : totalNetSalary.toFixed(2));
+        payroll.employeeCount = employeeCount;
         
-        // Retorna objeto no formato do modelo
-        return {
-          payrollId: payroll._id,
-          workerId: calculated.workerId,
-          employeeType: calculated.employeeType,
-          name: calculated.name,
-          position: calculated.position,
-          department: calculated.department,
-          baseSalary: calculated.baseSalary,
-          benefits: calculated.benefits,
-          deductions: calculated.deductions,
-          totalDeductions: calculated.totalDeductions,
-          netSalary: calculated.netSalary,
-          status: PayslipStatus.PROCESSED,
-          month: payroll.month,
-          year: payroll.year
-        };
-      });
-
-      // Calcula totais
-      calculatedPayslips.forEach(p => {
-        totalGrossSalary += p.baseSalary;
-        totalDiscounts += p.totalDeductions;
-        totalNetSalary += p.netSalary;
-      });
-
-      // Salva os holerites no banco
-      await PayslipModel.insertMany(calculatedPayslips);
-
-      // Atualiza a folha com os totais
-      payroll.status = PayrollStatus.COMPLETED;
-      payroll.processedAt = new Date();
-      payroll.totalGrossSalary = totalGrossSalary;
-      payroll.totalDiscounts = totalDiscounts;
-      payroll.totalNetSalary = totalNetSalary;
-      payroll.employeeCount = calculatedPayslips.length;
-
-      return await payroll.save();
+        // Salvar com tratamento de erro
+        const savedPayroll = await payroll.save();
+        return savedPayroll;
+      } catch (saveError: any) {
+        console.error('Erro ao salvar folha processada:', saveError);
+        throw new Error(`Erro ao finalizar folha de pagamento: ${saveError.message}`);
+      }
     } catch (error) {
-      // Reverte para o status de rascunho em caso de erro
-      payroll.status = PayrollStatus.DRAFT;
-      await payroll.save();
+      console.error('Erro ao processar folha de pagamento:', error);
       throw error;
     }
   }

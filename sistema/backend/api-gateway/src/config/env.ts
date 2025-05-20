@@ -22,3 +22,8 @@ export const DOCUMENT_SERVICE_URL = WORKER_SERVICE_URL;
 
 // Configurações do serviço de Time Sheet 
 export const TIMESHEET_SERVICE_URL = WORKER_SERVICE_URL;
+
+// Configurações do serviço de Folha de Pagamento
+export const PAYROLL_SERVICE_PORT = process.env.PAYROLL_SERVICE_PORT || 4013;
+export const PAYROLL_SERVICE_HOST = process.env.PAYROLL_SERVICE_HOST || 'localhost';
+export const PAYROLL_SERVICE_URL = `http://${PAYROLL_SERVICE_HOST}:${PAYROLL_SERVICE_PORT}`;

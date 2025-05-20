@@ -12,7 +12,7 @@ interface DatabaseConnection {
 }
 
 // Variáveis de ambiente
-const MONGODB_URI: string = process.env.MONGODB_URI || '4013';
+const MONGODB_URI: string = process.env.MONGODB_URI || 'MONGODB_URI';
 
 // Cache global para a conexão com o MongoDB
 const globalWithMongoose = global as typeof globalThis & {

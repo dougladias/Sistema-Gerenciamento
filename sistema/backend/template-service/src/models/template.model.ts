@@ -55,14 +55,6 @@ TemplateSchema.index({ name: 1 });
 TemplateSchema.index({ type: 1 });
 TemplateSchema.index({ createdAt: -1 });
 
-// Exemplo de duplicidade
-const schema = new mongoose.Schema({
-  documentNumber: { type: String, index: true }, // Definição de índice aqui
-});
-
-// E também:
-schema.index({ documentNumber: 1 }); // Definição duplicada
-
 // Função para criar o modelo Template
 export const createTemplateModel = () => {
   return mongoose.models.Template || mongoose.model<ITemplate>("Template", TemplateSchema);

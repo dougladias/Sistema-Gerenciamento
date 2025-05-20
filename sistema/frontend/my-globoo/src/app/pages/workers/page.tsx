@@ -284,7 +284,7 @@ export default function WorkersPage() {
     if (loading && workers.length === 0) {
       return (
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 dark:border-cyan-400"></div>
         </div>
       );
     }
@@ -304,20 +304,22 @@ export default function WorkersPage() {
   // Seção: Lista de Funcionários
   const renderWorkersList = () => {
     return (
-      <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        <div className="flex justify-between items-center p-4 border-b">
-          <h2 className="text-xl font-semibold text-gray-800">Lista de Funcionários</h2>
-          <Button
-            variant="primary"
-            leftIcon={<PlusIcon className="h-5 w-5" />}
-            onClick={handleNewWorker}
+      <div className="bg-white shadow-md rounded-lg overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+        <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Lista de Funcionários</h2>
+          <motion.button 
+            className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700 px-4 flex items-center py-2 rounded-xl text-[14px] gap-2 text-white shadow-sm transition-colors"
+            onClick={handleNewWorker} 
+            whileHover={{ scale: 1.02 }} 
+            whileTap={{ scale: 0.95 }}
           >
-            Novo Funcionário
-          </Button>
+            <span>Novo Funcionário</span>
+            <PlusIcon className="h-5 w-5" />
+          </motion.button>
         </div>
 
         {workers.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">
+          <div className="p-6 text-center text-gray-500 dark:text-gray-400">
             <p>Nenhum funcionário cadastrado.</p>
             <Button
               variant="primary"
@@ -329,78 +331,86 @@ export default function WorkersPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Nome
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     CPF
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Cargo
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Departamento
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Status
                   </th>
-                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Ações
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {workers.map((worker: Worker) => (
-                  <tr key={worker._id} className="hover:bg-gray-50">
+                  <tr key={worker._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{worker.name}</div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{worker.name}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{formatCPF(worker.cpf)}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{formatCPF(worker.cpf)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{worker.role}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{worker.role}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{worker.department}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{worker.department}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${worker.status === 'active' ? 'bg-green-100 text-green-800' : 
-                          worker.status === 'inactive' ? 'bg-red-100 text-red-800' : 
-                          'bg-gray-100 text-gray-800'}`}>
+                        ${worker.status === 'active' 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
+                          : worker.status === 'inactive' 
+                            ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' 
+                            : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                         {formatStatus(worker.status || 'active')}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                      <div className="flex justify-center space-x-2">
-                        <button
+                      <div className="flex justify-center space-x-3">
+                        <motion.button
                           onClick={() => handleViewWorker(worker._id as string)}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-cyan-600 hover:text-cyan-900 dark:text-cyan-400 dark:hover:text-cyan-300"
                           title="Ver detalhes"
+                          whileHover={{ scale: 1.15 }}
+                          whileTap={{ scale: 0.9 }}
                         >
                           <EyeIcon className="h-5 w-5" />
-                        </button>
-                        <button
+                        </motion.button>
+                        <motion.button
                           onClick={() => handleEditWorker(worker._id as string)}
-                          className="text-indigo-600 hover:text-indigo-900"
+                          className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
                           title="Editar"
+                          whileHover={{ scale: 1.15 }}
+                          whileTap={{ scale: 0.9 }}
                         >
                           <PencilIcon className="h-5 w-5" />
-                        </button>
-                        <button
+                        </motion.button>
+                        <motion.button
                           onClick={() => {
                             fetchWorkerById(worker._id as string);
                             setIsDeleteModalOpen(true);
                           }}
-                          className="text-red-600 hover:text-red-900"
+                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                           title="Excluir"
+                          whileHover={{ scale: 1.15 }}
+                          whileTap={{ scale: 0.9 }}
                         >
                           <TrashIcon className="h-5 w-5" />
-                        </button>
+                        </motion.button>
                       </div>
                     </td>
                   </tr>
@@ -416,25 +426,27 @@ export default function WorkersPage() {
   // Seção: Formulário de Funcionário
   const renderWorkerForm = () => {
     return (
-      <div className="bg-white shadow-md rounded-lg p-6">
+      <div className="bg-white shadow-md rounded-lg p-6 dark:bg-gray-800">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
             {formMode === 'create' ? 'Novo Funcionário' : 'Editar Funcionário'}
           </h2>
-          <button
+          <motion.button
             onClick={() => setActiveSection('list')}
-            className="text-gray-400 hover:text-gray-500"
+            className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
           >
             <XMarkIcon className="h-6 w-6" />
-          </button>
+          </motion.button>
         </div>
         
         <form onSubmit={handleFormSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Nome */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                Nome Completo <span className="text-red-500">*</span>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Nome Completo <span className="text-red-500 dark:text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -442,20 +454,20 @@ export default function WorkersPage() {
                 id="name"
                 value={formData.name || ''}
                 onChange={handleFormChange}
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-                  formErrors.name ? 'border-red-300' : ''
+                className={`mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm ${
+                  formErrors.name ? 'border-red-300 dark:border-red-500' : ''
                 }`}
                 required
               />
               {formErrors.name && (
-                <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.name}</p>
               )}
             </div>
             
             {/* CPF */}
             <div>
-              <label htmlFor="cpf" className="block text-sm font-medium text-gray-700">
-                CPF <span className="text-red-500">*</span>
+              <label htmlFor="cpf" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                CPF <span className="text-red-500 dark:text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -463,22 +475,22 @@ export default function WorkersPage() {
                 id="cpf"
                 value={formData.cpf || ''}
                 onChange={handleFormChange}
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-                  formErrors.cpf ? 'border-red-300' : ''
+                className={`mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm ${
+                  formErrors.cpf ? 'border-red-300 dark:border-red-500' : ''
                 }`}
                 required
                 maxLength={11}
                 placeholder="Apenas números"
               />
               {formErrors.cpf && (
-                <p className="mt-1 text-sm text-red-600">{formErrors.cpf}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.cpf}</p>
               )}
             </div>
             
             {/* Data de Nascimento */}
             <div>
-              <label htmlFor="nascimento" className="block text-sm font-medium text-gray-700">
-                Data de Nascimento <span className="text-red-500">*</span>
+              <label htmlFor="nascimento" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Data de Nascimento <span className="text-red-500 dark:text-red-400">*</span>
               </label>
               <input
                 type="date"
@@ -486,15 +498,15 @@ export default function WorkersPage() {
                 id="nascimento"
                 value={formData.nascimento || ''}
                 onChange={handleFormChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm"
                 required
               />
             </div>
             
             {/* Data de Admissão */}
             <div>
-              <label htmlFor="admissao" className="block text-sm font-medium text-gray-700">
-                Data de Admissão <span className="text-red-500">*</span>
+              <label htmlFor="admissao" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Data de Admissão <span className="text-red-500 dark:text-red-400">*</span>
               </label>
               <input
                 type="date"
@@ -502,15 +514,15 @@ export default function WorkersPage() {
                 id="admissao"
                 value={formData.admissao || ''}
                 onChange={handleFormChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm"
                 required
               />
             </div>
             
             {/* Salário */}
             <div>
-              <label htmlFor="salario" className="block text-sm font-medium text-gray-700">
-                Salário <span className="text-red-500">*</span>
+              <label htmlFor="salario" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Salário <span className="text-red-500 dark:text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -518,14 +530,14 @@ export default function WorkersPage() {
                 id="salario"
                 value={formData.salario || ''}
                 onChange={handleFormChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm"
                 required
               />
             </div>
             
             {/* Ajuda de Custo */}
             <div>
-              <label htmlFor="ajuda" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="ajuda" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Ajuda de Custo
               </label>
               <input
@@ -534,14 +546,14 @@ export default function WorkersPage() {
                 id="ajuda"
                 value={formData.ajuda || ''}
                 onChange={handleFormChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm"
               />
             </div>
             
             {/* Telefone */}
             <div>
-              <label htmlFor="numero" className="block text-sm font-medium text-gray-700">
-                Telefone <span className="text-red-500">*</span>
+              <label htmlFor="numero" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Telefone <span className="text-red-500 dark:text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -549,15 +561,15 @@ export default function WorkersPage() {
                 id="numero"
                 value={formData.numero || ''}
                 onChange={handleFormChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm"
                 required
               />
             </div>
             
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email <span className="text-red-500">*</span>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Email <span className="text-red-500 dark:text-red-400">*</span>
               </label>
               <input
                 type="email"
@@ -565,20 +577,20 @@ export default function WorkersPage() {
                 id="email"
                 value={formData.email || ''}
                 onChange={handleFormChange}
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-                  formErrors.email ? 'border-red-300' : ''
+                className={`mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm ${
+                  formErrors.email ? 'border-red-300 dark:border-red-500' : ''
                 }`}
                 required
               />
               {formErrors.email && (
-                <p className="mt-1 text-sm text-red-600">{formErrors.email}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.email}</p>
               )}
             </div>
             
             {/* Endereço */}
             <div className="md:col-span-2">
-              <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                Endereço <span className="text-red-500">*</span>
+              <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Endereço <span className="text-red-500 dark:text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -586,22 +598,22 @@ export default function WorkersPage() {
                 id="address"
                 value={formData.address || ''}
                 onChange={handleFormChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm"
                 required
               />
             </div>
             
             {/* Tipo de Contrato */}
             <div>
-              <label htmlFor="contract" className="block text-sm font-medium text-gray-700">
-                Tipo de Contrato <span className="text-red-500">*</span>
+              <label htmlFor="contract" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Tipo de Contrato <span className="text-red-500 dark:text-red-400">*</span>
               </label>
               <select
                 name="contract"
                 id="contract"
                 value={formData.contract || 'CLT'}
                 onChange={handleFormChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="p-4 mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm"
                 required
               >
                 <option value="CLT">CLT</option>
@@ -611,8 +623,8 @@ export default function WorkersPage() {
             
             {/* Cargo */}
             <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-                Cargo <span className="text-red-500">*</span>
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Cargo <span className="text-red-500 dark:text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -620,15 +632,15 @@ export default function WorkersPage() {
                 id="role"
                 value={formData.role || ''}
                 onChange={handleFormChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm"
                 required
               />
             </div>
             
             {/* Departamento */}
             <div>
-              <label htmlFor="department" className="block text-sm font-medium text-gray-700">
-                Departamento <span className="text-red-500">*</span>
+              <label htmlFor="department" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Departamento <span className="text-red-500 dark:text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -636,14 +648,14 @@ export default function WorkersPage() {
                 id="department"
                 value={formData.department || ''}
                 onChange={handleFormChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm"
                 required
               />
             </div>
             
             {/* Status */}
             <div>
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Status
               </label>
               <select
@@ -651,7 +663,7 @@ export default function WorkersPage() {
                 id="status"
                 value={formData.status || 'active'}
                 onChange={handleFormChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="p-4 mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm"
               >
                 <option value="active">Ativo</option>
                 <option value="inactive">Inativo</option>
@@ -665,6 +677,7 @@ export default function WorkersPage() {
               type="button"
               variant="secondary"
               onClick={() => setActiveSection('list')}
+              className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
             >
               Cancelar
             </Button>
@@ -672,6 +685,7 @@ export default function WorkersPage() {
               type="submit"
               variant="primary"
               isLoading={loading}
+              className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700"
             >
               {formMode === 'create' ? 'Criar Funcionário' : 'Salvar Alterações'}
             </Button>
@@ -687,33 +701,35 @@ export default function WorkersPage() {
     
     // Item de informação reutilizável
     const InfoItem = ({ label, value }: { label: string, value: React.ReactNode }) => (
-      <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-        <dt className="text-sm font-medium text-gray-500">{label}</dt>
-        <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{value}</dd>
+      <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
+        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">{label}</dt>
+        <dd className="mt-1 text-sm text-gray-900 dark:text-gray-200 sm:col-span-2 sm:mt-0">{value}</dd>
       </div>
     );
     
     return (
-      <div className="bg-white shadow overflow-hidden rounded-lg">
-        <div className="flex justify-between items-center px-4 py-5 sm:px-6 border-b border-gray-200">
+      <div className="bg-white shadow overflow-hidden rounded-lg dark:bg-gray-800">
+        <div className="flex justify-between items-center px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700">
           <div>
-            <h3 className="text-lg leading-6 font-medium text-gray-900">
+            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
               Informações do Funcionário
             </h3>
-            <p className="mt-1 max-w-2xl text-sm text-gray-500">
+            <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
               Detalhes pessoais e informações de contato.
             </p>
           </div>
-          <button
+          <motion.button
             onClick={() => setActiveSection('list')}
-            className="text-gray-400 hover:text-gray-500"
+            className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-300"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
           >
             <XMarkIcon className="h-6 w-6" />
-          </button>
+          </motion.button>
         </div>
         
-        <div className="border-t border-gray-200">
-          <dl>
+        <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-5 sm:p-0">
+          <dl className="sm:divide-y sm:divide-gray-200 sm:dark:divide-gray-700">
             <InfoItem label="Nome completo" value={currentWorker.name} />
             <InfoItem label="CPF" value={formatCPF(currentWorker.cpf)} />
             <InfoItem label="Data de nascimento" value={formatDate(currentWorker.nascimento)} />
@@ -732,9 +748,11 @@ export default function WorkersPage() {
               label="Status" 
               value={
                 <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                  ${currentWorker.status === 'active' ? 'bg-green-100 text-green-800' : 
-                    currentWorker.status === 'inactive' ? 'bg-red-100 text-red-800' : 
-                    'bg-gray-100 text-gray-800'}`}>
+                  ${currentWorker.status === 'active' 
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
+                    : currentWorker.status === 'inactive' 
+                      ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' 
+                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                   {formatStatus(currentWorker.status || 'active')}
                 </span>
               } 
@@ -742,17 +760,19 @@ export default function WorkersPage() {
           </dl>
         </div>
         
-        <div className="px-4 py-5 sm:px-6 bg-gray-50 border-t border-gray-200">
+        <div className="px-4 py-5 sm:px-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
           <div className="flex justify-end space-x-3">
             <Button
               variant="danger"
               onClick={() => setIsDeleteModalOpen(true)}
+              className="bg-red-500 hover:bg-red-600 text-white dark:bg-red-600 dark:hover:bg-red-700"
             >
               Excluir
             </Button>
             <Button
               variant="primary"
               onClick={() => handleEditWorker(currentWorker._id as string)}
+              className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700"
             >
               Editar
             </Button>
@@ -764,7 +784,7 @@ export default function WorkersPage() {
 
   return (
     <motion.div 
-      className="p-6 ml-[var(--sidebar-width,4.5rem)] transition-all duration-300 bg-gray-50 min-h-screen"
+      className="p-6 ml-[var(--sidebar-width,4.5rem)] transition-all duration-300 bg-gray-50 dark:bg-gray-900 min-h-screen"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
@@ -772,8 +792,8 @@ export default function WorkersPage() {
     >
       {/* Page header */}
       <motion.div variants={itemVariants} className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Gerenciamento de Funcionários</h1>
-        <p className="text-gray-500 mt-1">Cadastre, visualize e gerencie todos os funcionários da empresa</p>
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Gerenciamento de Funcionários</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">Cadastre, visualize e gerencie todos os funcionários da empresa</p>
       </motion.div>
 
       {/* Mensagens de sucesso/erro */}
@@ -814,7 +834,7 @@ export default function WorkersPage() {
       {/* Main content with shadow and rounded corners */}
       <motion.div 
         variants={itemVariants}
-        className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100"
+        className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 dark:border-cyan-700 dark:bg-gray-800"
       >
         {renderContent()}
       </motion.div>

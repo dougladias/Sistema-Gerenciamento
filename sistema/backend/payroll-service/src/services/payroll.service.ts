@@ -1,317 +1,312 @@
-import { IPayroll } from '../models/payroll.model';
-import { payrollRepository } from '../repositories/payroll.repository';
-import { connectToDatabase } from '../config/database';
-import dotenv from 'dotenv';
+import { PayrollModel, IPayroll, PayrollStatus } from '../models/payroll.model';
+import { PayslipModel, IPayslip, PayslipStatus } from '../models/payslip.model';
+import * as fs from 'fs';
+import * as path from 'path';
+import PDFDocument from 'pdfkit';
 
-// Carrega as variáveis de ambiente
-dotenv.config();
+export class PayrollService {
+  // Cria uma nova folha de pagamento
+  async createPayroll(month: number, year: number): Promise<IPayroll> {
+    // Verifica se já existe uma folha para o mês/ano
+    const existing = await PayrollModel.findOne({ month, year });
+    if (existing) {
+      throw new Error(`Folha de pagamento para ${month}/${year} já existe`);
+    }
 
-// URL do serviço de workers
-const WORKER_SERVICE_URL = process.env.WORKER_SERVICE_URL || 'http://localhost:4015';
+    // Cria nova folha
+    const payroll = new PayrollModel({
+      month,
+      year,
+      status: PayrollStatus.DRAFT,
+      totalGrossSalary: 0,
+      totalDiscounts: 0,
+      totalNetSalary: 0,
+      employeeCount: 0
+    });
 
-// Interface para o serviço de Payroll
-export interface IPayrollService {
-  calculatePayroll(workerId: string, month: number, year: number): Promise<IPayroll | null>;
-  generatePayrollForWorker(workerId: string, month: number, year: number): Promise<IPayroll | null>;
-  generatePayrollForAllWorkers(month: number, year: number): Promise<IPayroll[]>;
-  approvePayroll(payrollId: string): Promise<IPayroll | null>;
-  cancelPayroll(payrollId: string): Promise<IPayroll | null>;
-  getPayroll(payrollId: string): Promise<IPayroll | null>;
-  getPayrollsByWorker(workerId: string): Promise<IPayroll[]>;
-  getPayrollsByMonth(month: number, year: number): Promise<IPayroll[]>;
-  recalculatePayroll(payrollId: string): Promise<IPayroll | null>;
-}
+    // Salva no banco
+    return await payroll.save();
+  }
 
-export class PayrollService implements IPayrollService {
-  
-  // Calcula os valores da folha de pagamento com base nos dados do funcionário
-  async calculatePayroll(workerId: string, month: number, year: number): Promise<IPayroll | null> {
+  // Lista todas as folhas de pagamento
+  async listPayrolls(page: number = 1, limit: number = 10): Promise<{
+    payrolls: IPayroll[];
+    total: number;
+    page: number;
+    pages: number;
+  }> {
+    // Valida os parâmetros
+    const skip = (page - 1) * limit;
+    const total = await PayrollModel.countDocuments();
+    const payrolls = await PayrollModel.find()
+      .sort({ year: -1, month: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Verifica se há folhas de pagamento
+    return {
+      payrolls,
+      total,
+      page,
+      pages: Math.ceil(total / limit)
+    };
+  }
+
+  // Busca uma folha de pagamento pelo ID
+  async getPayrollById(id: string): Promise<IPayroll | null> {
+    return await PayrollModel.findById(id);
+  }
+
+  // Processa uma folha de pagamento com dados de funcionários
+  async processPayroll(payrollId: string, employees: any[]): Promise<IPayroll | null> {
+    const payroll = await PayrollModel.findById(payrollId);
+    if (!payroll) {
+      throw new Error('Folha de pagamento não encontrada');
+    }
+
+    // Verifica se a folha já foi processada
+    if (payroll.status === PayrollStatus.COMPLETED) {
+      throw new Error('Folha de pagamento já processada');
+    }
+
+    // Importa dinamicamente o calculador apenas quando necessário
+    const { calculateSalary } = await import('../utils/payroll.calculator');
+
+    // Atualiza status para processando
+    payroll.status = PayrollStatus.PROCESSING;
+    await payroll.save();
+
+    // Verifica se os dados de funcionários estão presentes
     try {
-      await connectToDatabase();
+      let totalGrossSalary = 0;
+      let totalDiscounts = 0;
+      let totalNetSalary = 0;
 
-      // Usando o fetch para buscar os dados do worker-service
-      const response = await fetch(`${WORKER_SERVICE_URL}/workers/${workerId}`);
-
-      if (!response.ok) {
-        console.error(`Erro ao buscar dados do funcionário: ${response.status} - ${await response.text()}`);
-        return null;
-      }
-
-      const worker = await response.json();
-
-      if (!worker) {
-        console.error(`Funcionário não encontrado: ${workerId}`);
-        return null;
-      }
-
-      // Calcula o salário base, considerando que o valor pode estar em diferentes formatos
-      let baseGrossSalary = 0;
-      if (typeof worker.salario === 'number') {
-        baseGrossSalary = worker.salario;
-      } else if (typeof worker.salario === 'string') {
-        // Remove caracteres não numéricos, exceto ponto e vírgula
-        baseGrossSalary = parseFloat(worker.salario.replace(/[^\d,.-]/g, '')
-          .replace(',', '.'));
-      }
-
-      if (isNaN(baseGrossSalary)) {
-        console.error(`Salário do funcionário em formato inválido: ${worker.salario}`);
-        return null;
-      }
-
-      // Busca a folha existente ou cria uma nova
-      let payroll: IPayroll | null = await payrollRepository.findByWorkerAndMonth(workerId, month, year);
-
-      if (payroll && payroll._id) {
-        // Se já existe, atualiza o salário base
-        payroll = await payrollRepository.update(payroll._id.toString(), {
-          baseGrossSalary
-        });
-      } else {
-        // Se não existe, cria uma nova folha de pagamento
-        const newPayroll: Partial<IPayroll> = {
-          workerId,
-          workerName: worker.name,
-          month,
-          year,
-          baseGrossSalary,
-          totalDeductions: 0,
-          totalBenefits: 0,
-          totalAdditionals: 0,
-          netSalary: baseGrossSalary,
-          deductions: [],
-          benefits: [],
-          additionals: [],
-          status: "draft",
-          generatedDate: new Date()
+      // Calcula os holerites para cada funcionário
+      const calculatedPayslips = employees.map(employee => {
+        // Calcula os valores do holerite
+        const calculated = calculateSalary(employee);
+        
+        // Retorna objeto no formato do modelo
+        return {
+          payrollId: payroll._id,
+          workerId: calculated.workerId,
+          employeeType: calculated.employeeType,
+          name: calculated.name,
+          position: calculated.position,
+          department: calculated.department,
+          baseSalary: calculated.baseSalary,
+          benefits: calculated.benefits,
+          deductions: calculated.deductions,
+          totalDeductions: calculated.totalDeductions,
+          netSalary: calculated.netSalary,
+          status: PayslipStatus.PROCESSED,
+          month: payroll.month,
+          year: payroll.year
         };
-        
-        payroll = await payrollRepository.create(newPayroll as IPayroll);
+      });
+
+      // Calcula totais
+      calculatedPayslips.forEach(p => {
+        totalGrossSalary += p.baseSalary;
+        totalDiscounts += p.totalDeductions;
+        totalNetSalary += p.netSalary;
+      });
+
+      // Salva os holerites no banco
+      await PayslipModel.insertMany(calculatedPayslips);
+
+      // Atualiza a folha com os totais
+      payroll.status = PayrollStatus.COMPLETED;
+      payroll.processedAt = new Date();
+      payroll.totalGrossSalary = totalGrossSalary;
+      payroll.totalDiscounts = totalDiscounts;
+      payroll.totalNetSalary = totalNetSalary;
+      payroll.employeeCount = calculatedPayslips.length;
+
+      return await payroll.save();
+    } catch (error) {
+      // Reverte para o status de rascunho em caso de erro
+      payroll.status = PayrollStatus.DRAFT;
+      await payroll.save();
+      throw error;
+    }
+  }
+
+  // Obtém os holerites de uma folha de pagamento
+  async getPayslipsByPayrollId(payrollId: string): Promise<IPayslip[]> {
+    return await PayslipModel.find({ payrollId });
+  }
+
+  // Obtém resumo por departamento e tipo de funcionário
+  async getPayrollSummary(payrollId: string): Promise<any> {
+    const payroll = await PayrollModel.findById(payrollId);
+    if (!payroll) {
+      throw new Error('Folha de pagamento não encontrada');
+    }
+
+    // Verifica se a folha já foi processada
+    const payslips = await PayslipModel.find({ payrollId });
+    if (!payslips.length) {
+      throw new Error('Esta folha de pagamento não possui holerites');
+    }
+
+    // Agrupa por departamento
+    const departmentSummary: Record<string, {
+      count: number;
+      totalGrossSalary: number;
+      totalDeductions: number;
+      totalNetSalary: number;
+    }> = {};
+
+    // Agrupa por tipo de contratação
+    const employeeTypeSummary: Record<string, {
+      count: number;
+      totalGrossSalary: number;
+      totalDeductions: number;
+      totalNetSalary: number;
+    }> = {};
+
+    // Processa cada holerite
+    payslips.forEach(payslip => {
+      // Agrupa por departamento
+      const dept = payslip.department;
+      if (!departmentSummary[dept]) {
+        departmentSummary[dept] = {
+          count: 0,
+          totalGrossSalary: 0,
+          totalDeductions: 0,
+          totalNetSalary: 0
+        };
       }
-
-      // Adiciona descontos padrão se for uma nova folha
-      if (payroll && payroll.deductions.length === 0 && payroll._id) {
-        // Adiciona INSS com base no salário
-        await payrollRepository.addDeduction(payroll._id.toString(), {
-          name: "INSS",
-          value: 7.5, // Valor padrão para simplificar
-          type: "percentage",
-          description: "Contribuição para o INSS"
-        });
-
-        // Adiciona IRRF com base no salário
-        await payrollRepository.addDeduction(payroll._id.toString(), {
-          name: "IRRF",
-          value: 5, // Valor padrão para simplificar
-          type: "percentage",
-          description: "Imposto de Renda Retido na Fonte"
-        });
-
-        // Adiciona FGTS (não é um desconto para o trabalhador, mas é calculado)
-        await payrollRepository.addAdditional(payroll._id.toString(), {
-          name: "FGTS",
-          value: 8,
-          type: "percentage",
-          description: "Fundo de Garantia do Tempo de Serviço"
-        });
+      
+      // Atualiza os totais do departamento
+      departmentSummary[dept].count += 1;
+      departmentSummary[dept].totalGrossSalary += payslip.baseSalary;
+      departmentSummary[dept].totalDeductions += payslip.totalDeductions;
+      departmentSummary[dept].totalNetSalary += payslip.netSalary;
+      
+      // Agrupa por tipo de contratação
+      const type = payslip.employeeType;
+      if (!employeeTypeSummary[type]) {
+        employeeTypeSummary[type] = {
+          count: 0,
+          totalGrossSalary: 0,
+          totalDeductions: 0,
+          totalNetSalary: 0
+        };
       }
+      
+      // Atualiza os totais do tipo de contratação
+      employeeTypeSummary[type].count += 1;
+      employeeTypeSummary[type].totalGrossSalary += payslip.baseSalary;
+      employeeTypeSummary[type].totalDeductions += payslip.totalDeductions;
+      employeeTypeSummary[type].totalNetSalary += payslip.netSalary;
+    });
 
-      // Adiciona benefícios padrão se for um novo payroll e o trabalhador tem ajuda
-      if (payroll && payroll.benefits.length === 0 && worker.ajuda && payroll._id) {
-        let valeAlimentacao = 0;
-        
-        // Determina o valor do benefício
-        if (typeof worker.ajuda === 'number') {
-          valeAlimentacao = worker.ajuda;
-        } else if (typeof worker.ajuda === 'string') {
-          valeAlimentacao = parseFloat(worker.ajuda.replace(/[^\d,.-]/g, '')
-            .replace(',', '.'));
-        }
-
-        if (!isNaN(valeAlimentacao) && valeAlimentacao > 0) {
-          await payrollRepository.addBenefit(payroll._id.toString(), {
-            name: "Vale Alimentação",
-            value: valeAlimentacao,
-            type: "fixed",
-            description: "Vale Alimentação mensal"
-          });
-        }
-      }
-
-      // Recalcula os valores finais
-      if (payroll && payroll._id) {
-        return await payrollRepository.recalculate(payroll._id.toString());
-      }
-      return null;
-    } catch (error) {
-      console.error('Erro ao calcular folha de pagamento:', error);
-      return null;
-    }
+    // Retorna o resumo
+    return {
+      payroll,
+      departmentSummary,
+      employeeTypeSummary,
+      payslipCount: payslips.length
+    };
   }
 
-  // Gera a folha de pagamento para um funcionário específico
-  async generatePayrollForWorker(workerId: string, month: number, year: number): Promise<IPayroll | null> {
-    try {
-      // Calcula ou atualiza a folha
-      const payroll = await this.calculatePayroll(workerId, month, year);
-
-      if (payroll && payroll._id) {
-        // Atualiza o status para processing
-        return await payrollRepository.setStatus(payroll._id.toString(), "processing");
-      }
-
-      return null;
-    } catch (error) {
-      console.error('Erro ao gerar folha de pagamento:', error);
-      return null;
+  // Gera o PDF de um holerite
+  async generatePayslipPDF(payslipId: string): Promise<string> {
+    const payslip = await PayslipModel.findById(payslipId);
+    if (!payslip) {
+      throw new Error('Holerite não encontrado');
     }
-  }
 
-  // Gera a folha de pagamento para todos os funcionários
-  async generatePayrollForAllWorkers(month: number, year: number): Promise<IPayroll[]> {
-    try {
-      // Busca todos os funcionários
-      const response = await fetch(`${WORKER_SERVICE_URL}/workers`);
-
-      if (!response.ok) {
-        console.error(`Erro ao buscar funcionários: ${response.status} - ${await response.text()}`);
-        return [];
-      }
-
-      const workers = await response.json();
-      const results: IPayroll[] = [];
-
-      // Gera a folha para cada funcionário
-      for (const worker of workers) {
-        const payroll = await this.generatePayrollForWorker(worker._id, month, year);
-        if (payroll) {
-          results.push(payroll);
-        }
-      }
-
-      return results;
-    } catch (error) {
-      console.error('Erro ao gerar folha de pagamento para todos:', error);
-      return [];
+    // Verifica se a folha de pagamento existe
+    const payroll = await PayrollModel.findById(payslip.payrollId);
+    if (!payroll) {
+      throw new Error('Folha de pagamento não encontrada');
     }
-  }
 
-  // Aprova uma folha de pagamento
-  async approvePayroll(payrollId: string): Promise<IPayroll | null> {
-    try {
-      // Recalcula a folha antes de aprovar
-      await payrollRepository.recalculate(payrollId);
-
-      // Define o status como completed
-      return await payrollRepository.setStatus(payrollId, "completed");
-    } catch (error) {
-      console.error('Erro ao aprovar folha de pagamento:', error);
-      return null;
+    // Cria diretório temporário se não existir
+    const tempDir = path.join(__dirname, '../../temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
     }
-  }
 
-  // Cancela uma folha de pagamento
-  async cancelPayroll(payrollId: string): Promise<IPayroll | null> {
-    try {
-      return await payrollRepository.setStatus(payrollId, "canceled");
-    } catch (error) {
-      console.error('Erro ao cancelar folha de pagamento:', error);
-      return null;
-    }
-  }
+    // Caminho do arquivo
+    const filePath = path.join(tempDir, `holerite_${payslip.workerId}_${payslip.month}_${payslip.year}.pdf`);
 
-  // Obtém uma folha de pagamento pelo ID
-  async getPayroll(payrollId: string): Promise<IPayroll | null> {
-    try {
-      return await payrollRepository.findById(payrollId);
-    } catch (error) {
-      console.error('Erro ao obter folha de pagamento:', error);
-      return null;
-    }
-  }
+    // Cria o PDF
+    const doc = new PDFDocument();
+    const stream = fs.createWriteStream(filePath);
 
-  // Obtém todas as folhas de pagamento de um funcionário
-  async getPayrollsByWorker(workerId: string): Promise<IPayroll[]> {
-    try {
-      return await payrollRepository.findByWorker(workerId);
-    } catch (error) {
-      console.error('Erro ao obter folhas de pagamento do funcionário:', error);
-      return [];
-    }
-  }
+    // Pipe do PDF para o arquivo
+    doc.pipe(stream);
 
-  // Obtém todas as folhas de pagamento de um mês específico
-  async getPayrollsByMonth(month: number, year: number): Promise<IPayroll[]> {
-    try {
-      return await payrollRepository.findByMonth(month, year);
-    } catch (error) {
-      console.error('Erro ao obter folhas de pagamento do mês:', error);
-      return [];
-    }
-  }
-
-  // Recalcula uma folha de pagamento
-  async recalculatePayroll(payrollId: string): Promise<IPayroll | null> {
-    try {
-      return await payrollRepository.recalculate(payrollId);
-    } catch (error) {
-      console.error('Erro ao recalcular folha de pagamento:', error);
-      return null;
-    }
-  }
-
-  // Métodos auxiliares para cálculos
-
-  // Calcula a alíquota do INSS com base no salário
-  private calculateInssRate(salary: number): number {
-    // Tabela de faixas e alíquotas do INSS 2025
-    const inssTable = [
-      { limit: 1518.00, rate: 0.075 }, // Faixa 1: até R$ 1.518,00
-      { limit: 2793.88, rate: 0.09 },  // Faixa 2: de R$ 1.518,01 a R$ 2.793,88
-      { limit: 4190.83, rate: 0.12 },  // Faixa 3: de R$ 2.793,89 a R$ 4.190,83
-      { limit: Infinity, rate: 0.14 }  // Faixa 4: acima de R$ 4.190,83
+    // Adiciona conteúdo ao PDF
+    doc.fontSize(18).text('HOLERITE', { align: 'center' });
+    doc.moveDown();
+    
+    // Período
+    const months = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
     ];
+    doc.fontSize(12).text(`Referente a: ${months[payslip.month - 1]}/${payslip.year}`, { align: 'center' });
+    doc.moveDown();
 
-    let totalContribution = 0;
-    let previousLimit = 0;
+    // Informações do funcionário
+    doc.fontSize(14).text('Informações do Funcionário');
+    doc.fontSize(10);
+    doc.text(`Nome: ${payslip.name}`);
+    doc.text(`Cargo: ${payslip.position}`);
+    doc.text(`Departamento: ${payslip.department}`);
+    doc.text(`Tipo de Contratação: ${payslip.employeeType}`);
+    doc.moveDown();
 
-    for (const faixa of inssTable) {
-      if (salary > faixa.limit) {
-        totalContribution += (faixa.limit - previousLimit) * faixa.rate;
-        previousLimit = faixa.limit;
-      } else {
-        totalContribution += (salary - previousLimit) * faixa.rate;
-        break;
-      }
+    // Informações salariais
+    doc.fontSize(14).text('Informações Salariais');
+    doc.fontSize(10);
+    doc.text(`Salário Base: R$ ${payslip.baseSalary.toFixed(2)}`);
+    
+    // Benefícios
+    if (payslip.benefits && payslip.benefits.length > 0) {
+      doc.moveDown();
+      doc.fontSize(12).text('Benefícios:');
+      payslip.benefits.forEach(benefit => {
+        doc.fontSize(10).text(`- ${benefit.description || benefit.type}: R$ ${benefit.value.toFixed(2)}`);
+      });
     }
-
-    return parseFloat((totalContribution / salary * 100).toFixed(2)); // Retorna a taxa em porcentagem
-  }
-
-  // Calcula o IRRF com base na tabela de 2025
-  private calculateIrrfRate(salary: number): number {
-    // Tabela IRRF 2025
-    const irrfTable = [
-      { limit: 3036.00, rate: 0, deduction: 0 }, // Isento
-      { limit: 3533.31, rate: 0.075, deduction: 182.16 },
-      { limit: 4688.85, rate: 0.15, deduction: 394.16 },
-      { limit: 5830.85, rate: 0.225, deduction: 675.49 },
-      { limit: Infinity, rate: 0.275, deduction: 908.73 }
-    ];
-
-    let rate = 0;
-
-    for (const faixa of irrfTable) {
-      if (salary <= faixa.limit) {
-        rate = faixa.rate * 100; // Converte para porcentagem
-        break;
-      }
+    
+    // Deduções
+    if (payslip.deductions && payslip.deductions.length > 0) {
+      doc.moveDown();
+      doc.fontSize(12).text('Descontos:');
+      payslip.deductions.forEach(deduction => {
+        doc.fontSize(10).text(`- ${deduction.description || deduction.type}: R$ ${deduction.value.toFixed(2)}`);
+      });
     }
+    
+    // Resumo
+    doc.moveDown();
+    doc.fontSize(12).text('Resumo:');
+    doc.fontSize(10);
+    doc.text(`Total de Descontos: R$ ${payslip.totalDeductions.toFixed(2)}`);
+    doc.text(`Salário Líquido: R$ ${payslip.netSalary.toFixed(2)}`);
+    
+    // Rodapé
+    doc.moveDown(2);
+    doc.fontSize(8).text('Este documento é uma demonstração de pagamento. Para mais informações, entre em contato com o RH.', { align: 'center' });
 
-    return parseFloat(rate.toFixed(2));
+    // Finaliza o PDF
+    doc.end();
+
+    // Retorna uma Promise que será resolvida quando o stream terminar
+    return new Promise((resolve, reject) => {
+      stream.on('finish', () => resolve(filePath));
+      stream.on('error', reject);
+    });
   }
 }
 
-// Exporta uma instância única do serviço
+// Cria uma instância do serviço
 export const payrollService = new PayrollService();
-export default payrollService;

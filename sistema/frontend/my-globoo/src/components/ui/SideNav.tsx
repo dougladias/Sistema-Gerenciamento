@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation"; // Import for path tracking
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { HiUsers, HiDocumentText, HiTemplate, HiMenuAlt2, HiX, HiPlus } from "react-icons/hi";
 import LottieLogo from "./LottieLogo";
+import ThemeToggle from "./ThemeToggle";
 
 export default function SideNav() {
     const [isOpen, setIsOpen] = useState(true);
     const [mounted, setMounted] = useState(false);
+    const pathname = usePathname(); // Track current path
     
     // Ensure consistent animations after initial mount
     useEffect(() => {
@@ -25,7 +28,13 @@ export default function SideNav() {
         }
     }, [isOpen, mounted]);
     
-    // Enhanced sidebar animation variants with better easing
+    // Check if a link is active
+    const isActive = (href: string) => {
+        // Match exact path or path prefix for nested routes
+        return pathname === href || pathname?.startsWith(href);
+    };
+    
+    // All your existing animation variants remain the same
     const sidebarVariants = {
         open: {
             width: "16rem",
@@ -47,7 +56,6 @@ export default function SideNav() {
         }
     };
     
-    // Links container animation variants with better staggering
     const linksContainerVariants = {
         open: {
             transition: { 
@@ -64,8 +72,6 @@ export default function SideNav() {
         }
     };
     
-    // Link item animation variants with improved floatiness
-    // Modified to keep icons visible in closed state
     const linkVariants = {
         open: {
             y: 0,
@@ -79,7 +85,7 @@ export default function SideNav() {
             }
         },
         closed: {
-            opacity: 1, // Keep link container visible
+            opacity: 1,
             transition: {
                 type: "spring",
                 stiffness: 300,
@@ -88,45 +94,40 @@ export default function SideNav() {
         }
     };
     
-    // Background animation for subtle float effect
     const bgInitial = { backgroundPosition: "0% 0%" };
     const bgAnimate = { 
         backgroundPosition: "100% 100%",
         transition: { duration: 30, repeat: Infinity, repeatType: "mirror" as const, ease: "linear" }
     };
     
-    // Link items with icons
     const navLinks = [
         { href: "/pages/dashboard", label: "Painel Geral", icon: <HiPlus size={21} /> },
         { href: "/pages/workers", label: "Gerenciar Funcionários", icon: <HiUsers size={21} /> },
         { href: "/pages/documents", label: "Gerenciar Documentos", icon: <HiDocumentText size={21} /> },
         { href: "/pages/templates", label: "Gerenciar Templates", icon: <HiTemplate size={21} /> },
         { href: "/pages/timeSheet", label: "Controle de Ponto", icon: <HiDocumentText size={21} /> },       
-        { href: "/pages/payroll", label: "Folha de Pagamento", icon: <HiDocumentText size={21} /> },       
     ];
     
     return (
         <motion.div 
-            className="side-nav fixed top-0 left-0 z-40 h-screen border-r border-gray-800/30"
+            className="side-nav fixed top-0 left-0 z-40 h-screen border-r border-gray-200 dark:border-gray-800/30"
             initial={false}
             animate={isOpen ? "open" : "closed"}
             variants={sidebarVariants}
         >
             <motion.div 
-                className="h-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white shadow-xl shadow-gray-900/30 flex flex-col relative overflow-hidden"
+                className="h-full bg-gradient-to-br from-white via-gray-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 shadow-xl shadow-gray-200/50 dark:shadow-gray-900/30 flex flex-col relative overflow-hidden"
                 initial={bgInitial}
                 animate={bgAnimate}
                 style={{
                     backgroundSize: "200% 200%",
                 }}
             >
-                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAgTSA2MCAxMCBMIDYwIDAgNTAgMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwMDAwMDUiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-5"></div>
-                
-                {/* Toggle button repositioned */}
+                {/* Toggle button */}
                 <div className={`flex justify-${isOpen ? 'end' : 'center'} p-4`}>
                     <motion.button
                         onClick={() => setIsOpen(!isOpen)}
-                        className="p-2 rounded-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-100 backdrop-blur-sm transition-colors z-50"
+                        className="p-2 rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-700 dark:text-blue-100 backdrop-blur-sm transition-colors z-50"
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                         initial={false}
@@ -139,12 +140,12 @@ export default function SideNav() {
                     </motion.button>
                 </div>
                 
-                {/* Logo area with enhanced animations */}
+                {/* Logo area */}
                 <motion.div 
-                    className={`flex items-center ${isOpen ? 'p-5 pt-0' : 'p-3 justify-center'} ${isOpen ? 'mb-8' : 'mb-4'}`}
+                    className={`mx-auto ${isOpen ? 'p-5 pt-0' : 'p-3 justify-center'} ${isOpen ? 'mb-8' : 'mb-1'}`}
                 >
                     <motion.div 
-                        className="w-11 h-11 rounded-full flex items-center justify-center text-xl font-bold shadow-lg shadow-blue-500/20"
+                        className={`${isOpen ? "w-22 h-22" : "w-12 h-12"} rounded-full flex items-center justify-center text-xl font-bold shadow-lg shadow-blue-300/20 dark:shadow-blue-500/20`}
                         whileHover={{ 
                             scale: 1.08,
                             rotate: [0, -3, 3, 0],
@@ -174,108 +175,130 @@ export default function SideNav() {
                     </motion.div>
                     
                     <AnimatePresence>
-                        {isOpen && (
-                            <motion.h1 
-                                className="ml-3 text-xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent"
-                                initial={{ opacity: 0, x: -15 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -15 }}
-                                transition={{ 
-                                    type: "spring",
-                                    stiffness: 300,
-                                    damping: 25,
-                                }}
-                            >
-                                Globoo
-                            </motion.h1>
-                        )}
+                        
                     </AnimatePresence>
                 </motion.div>
                 
-                {/* Navigation links with enhanced staggered animation */}
+                {/* Navigation links */}
                 <motion.nav 
                     className="flex-1 px-3"
                     variants={linksContainerVariants}
                 >
-                    {navLinks.map((link, index) => (
-                        <motion.div 
-                            key={index}
-                            variants={linkVariants}
-                            className="mb-3.5"
-                        >
-                            <Link href={link.href}>
-                                <motion.div
-                                    className={`flex items-center ${isOpen ? 'justify-start' : 'justify-center'} gap-3.5 p-3 rounded-xl hover:bg-white/5 transition-all cursor-pointer group relative overflow-hidden`}
-                                    whileHover={{ 
-                                        x: 5,
-                                        backgroundColor: "rgba(59, 130, 246, 0.1)",
-                                        transition: { duration: 0.2, ease: "easeOut" } 
-                                    }}
-                                    whileTap={{ scale: 0.98 }}
-                                    initial={{ opacity: mounted ? 1 : 0 }}
-                                    animate={{ opacity: 1 }}
-                                >
-                                    {/* Highlight ripple animation on hover */}
-                                    <motion.div 
-                                        className="absolute inset-0 bg-blue-500/10 rounded-xl" 
-                                        initial={{ scale: 0, opacity: 0 }}
+                    {navLinks.map((link, index) => {
+                        // Check if this link is active
+                        const active = isActive(link.href);
+                        
+                        return (
+                            <motion.div 
+                                key={index}
+                                variants={linkVariants}
+                                className="mb-3.5"
+                            >
+                                <Link href={link.href}>
+                                    <motion.div
+                                        className={`flex items-center ${isOpen ? 'justify-start' : 'justify-center'} gap-3.5 p-3 rounded-xl ${
+                                            // Apply active styles or hover styles
+                                            active 
+                                                ? 'bg-cyan-50 dark:bg-cyan-900/20' 
+                                                : 'hover:bg-blue-50 dark:hover:bg-white/5'
+                                        } transition-all cursor-pointer group relative overflow-hidden`}
                                         whileHover={{ 
-                                            scale: [0, 2],
-                                            opacity: [0, 0.15, 0],
-                                            transition: {
-                                                scale: { duration: 1.2, ease: "easeOut" },
-                                                opacity: { duration: 1.2, ease: "easeOut" }
-                                            }
+                                            x: 5,
+                                            backgroundColor: active 
+                                                ? "rgba(6, 182, 212, 0.15)"  // Lighter cyan for active
+                                                : "rgba(59, 130, 246, 0.1)",  // Light blue for hover
+                                            transition: { duration: 0.2, ease: "easeOut" } 
                                         }}
-                                    />
-                                    
-                                    {/* Icon with enhanced micro-animations - always visible */}
-                                    <motion.div 
-                                        className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 text-blue-300 group-hover:text-blue-200 transition-colors"
-                                        whileHover={{ 
-                                            scale: 1.1,
-                                            rotate: [0, -4, 4, 0],
-                                            transition: {
-                                                rotate: {
-                                                    duration: 0.4,
-                                                    ease: "easeInOut",
-                                                    repeat: 0
-                                                }
-                                            }
-                                        }}
+                                        whileTap={{ scale: 0.98 }}
+                                        initial={{ opacity: mounted ? 1 : 0 }}
+                                        animate={{ opacity: 1 }}
                                     >
-                                        {link.icon}
-                                    </motion.div>
-                                    
-                                    {/* Link text with improved animation */}
-                                    <AnimatePresence>
-                                        {isOpen && (
-                                            <motion.span 
-                                                className="text-gray-200 group-hover:text-white transition-colors whitespace-nowrap font-medium"
-                                                initial={{ opacity: 0, x: -5 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                exit={{ opacity: 0, x: -5 }}
-                                                transition={{ 
-                                                    type: "spring",
-                                                    stiffness: 400,
-                                                    damping: 30
-                                                }}
-                                            >
-                                                {link.label}
-                                            </motion.span>
+                                        {/* Active indicator line */}
+                                        {active && (
+                                            <motion.div
+                                                className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-3/4 bg-cyan-500 dark:bg-cyan-400 rounded-r-md"
+                                                layoutId="activeNavIndicator"
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                transition={{ duration: 0.3 }}
+                                            />
                                         )}
-                                    </AnimatePresence>
-                                </motion.div>
-                            </Link>
-                        </motion.div>
-                    ))}
+                                        
+                                        {/* Highlight ripple animation on hover */}
+                                        <motion.div 
+                                            className={`absolute inset-0 ${active ? 'bg-cyan-500/15' : 'bg-cyan-500/10'} rounded-xl`}
+                                            initial={{ scale: 0, opacity: 0 }}
+                                            whileHover={{ 
+                                                scale: [0, 2],
+                                                opacity: [0, 0.15, 0],
+                                                transition: {
+                                                    scale: { duration: 1.2, ease: "easeOut" },
+                                                    opacity: { duration: 1.2, ease: "easeOut" }
+                                                }
+                                            }}
+                                        />
+                                        
+                                        {/* Icon */}
+                                        <motion.div 
+                                            className={`flex items-center justify-center w-8 h-8 rounded-lg ${
+                                                active
+                                                    ? 'bg-cyan-200/80 dark:bg-cyan-800/40 text-cyan-700 dark:text-cyan-200'
+                                                    : 'bg-blue-100/80 dark:bg-white/5 text-cyan-600 dark:text-cyan-300'
+                                            } group-hover:text-cyan-700 dark:group-hover:text-cyan-200 transition-colors`}
+                                            whileHover={{ 
+                                                scale: 1.1,
+                                                rotate: [0, -4, 4, 0],
+                                                transition: {
+                                                    rotate: {
+                                                        duration: 0.4,
+                                                        ease: "easeInOut",
+                                                        repeat: 0
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            {link.icon}
+                                        </motion.div>
+                                        
+                                        {/* Link text */}
+                                        <AnimatePresence>
+                                            {isOpen && (
+                                                <motion.span 
+                                                    className={`${
+                                                        active
+                                                            ? 'text-cyan-700 dark:text-cyan-300 font-semibold'
+                                                            : 'text-gray-700 dark:text-gray-200'
+                                                    } group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors whitespace-nowrap font-medium`}
+                                                    initial={{ opacity: 0, x: -5 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    exit={{ opacity: 0, x: -5 }}
+                                                    transition={{ 
+                                                        type: "spring",
+                                                        stiffness: 400,
+                                                        damping: 30
+                                                    }}
+                                                >
+                                                    {link.label}
+                                                </motion.span>
+                                            )}
+                                        </AnimatePresence>
+                                    </motion.div>
+                                </Link>
+                            </motion.div>
+                        );
+                    })}
                 </motion.nav>
                 
-                {/* Footer area with smooth appearance */}
+                {/* Theme toggle button */}
+                <div className={`px-3 mx-auto ${isOpen ? 'mb-2' : 'flex justify-center mb-2'}`}>
+                    <ThemeToggle />
+                </div>
+                
+                {/* Footer */}
                 <AnimatePresence>
                     {isOpen && (
                         <motion.div 
-                            className="p-4 mt-auto border-t border-white/5"
+                            className="p-4 border-t border-gray-200/50 dark:border-white/5"
                             initial={{ opacity: 0, y: 15 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 15 }}
@@ -287,8 +310,8 @@ export default function SideNav() {
                             }}
                         >
                             <motion.div 
-                                className="text-xs text-gray-400 text-center"
-                                whileHover={{ color: "#ffffff" }}
+                                className="text-xs text-gray-500 dark:text-gray-400 text-center"
+                                whileHover={{ color: "#4B5563" }}
                             >
                                 Globoo Admin © 2025
                             </motion.div>

@@ -1,230 +1,166 @@
+import http from 'http';
 import { connectToDatabase } from './config/database';
+import { payrollRoutes } from './routes/payroll.route';
+import { payslipRoutes } from './routes/payslip.route';
 import dotenv from 'dotenv';
 import path from 'path';
-import http from 'http';
-import url from 'url';
-import { payrollRoutes } from './controllers/payroll.controller';
-import { payStubRoutes } from './controllers/payStub.controller';
 
-// Carrega as variáveis de ambiente do arquivo na raiz do backend
-dotenv.config({ path: path.join(__dirname, '../../../.env') });
+// Carrega as variáveis de ambiente
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
-// Porta do serviço Payroll (garantindo que use 4013)
-const PORT = Number(process.env.PAYROLL_SERVICE_PORT) || 4013;
+// Configurações do servidor
+const HOST = process.env.PAYROLL_SERVICE_HOST || 'localhost';
+const PORT = parseInt(process.env.PAYROLL_SERVICE_PORT || '4013');
 
-// Tipos para o serviço HTTP
-type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'OPTIONS';
-type RouteHandler = (req: http.IncomingMessage, res: http.ServerResponse, params: any) => Promise<void>;
+// Todas as rotas
+const allRoutes = [...payrollRoutes, ...payslipRoutes];
 
-// Interface para as rotas
-interface Route {
-  method: HttpMethod;
-  path: string;
-  handler: RouteHandler;
-}
-
-// Classe principal do serviço
-class PayrollService {
-  private server: http.Server;
-  private routes: Route[] = [];
-
-  constructor(private port: number = PORT) {
-    // Registra as rotas
-    this.registerRoutes();
-
-    // Cria o servidor HTTP
-    this.server = http.createServer(this.handleRequest.bind(this));
-  }
-
-  // Inicia o servidor
-  public start(): void {
-    this.server.listen(this.port, () => {
-      console.log(`Servidor Payroll iniciado na porta ${this.port}`);
-      this.logAvailableRoutes();
-    });
-  }
-
-  // Registra as rotas da API
-  private registerRoutes(): void {
-    // Rota de teste/status
-    this.addRoute('GET', '/', async (req, res) => {
-      this.sendJson(res, { 
-        message: 'API de Folha de Pagamento funcionando!',
-        version: '1.0.0',
-        port: this.port,
-        status: 'online'
-      });
-    });
-
-    // Adiciona as rotas de folha de pagamento
-    payrollRoutes.forEach(route => {
-      this.addRoute(route.method as HttpMethod, route.path, route.handler);
-    });
-    
-    // Adiciona as rotas de holerite
-    payStubRoutes.forEach(route => {
-      this.addRoute(route.method as HttpMethod, route.path, route.handler);
-    });
-  }
-
-  // Exibe as rotas disponíveis no console
-  private logAvailableRoutes(): void {
-    console.log(`📊 Endpoints disponíveis:`);
-    
-    // Rotas gerais
-    console.log(`\n🔹 Rotas gerais:`);
-    this.routes
-      .filter(r => !r.path.includes('/payrolls') && !r.path.includes('/workers') && !r.path.includes('/paystubs'))
-      .forEach(route => {
-        console.log(`   ${route.method.padEnd(6)} ${route.path}`);
-      });
-    
-    // Rotas de folha de pagamento
-    console.log(`\n🔹 Rotas de Folha de Pagamento:`);
-    this.routes
-      .filter(r => r.path.includes('/payrolls') && !r.path.includes('/paystubs'))
-      .forEach(route => {
-        console.log(`   ${route.method.padEnd(6)} ${route.path}`);
-      });
-    
-    // Rotas de holerite
-    console.log(`\n🔹 Rotas de Holerite:`);
-    this.routes
-      .filter(r => r.path.includes('/paystubs'))
-      .forEach(route => {
-        console.log(`   ${route.method.padEnd(6)} ${route.path}`);
-      });
-    
-    // Rotas por funcionário
-    console.log(`\n🔹 Rotas por Funcionário:`);
-    this.routes
-      .filter(r => r.path.includes('/workers'))
-      .forEach(route => {
-        console.log(`   ${route.method.padEnd(6)} ${route.path}`);
-      });
-  }
-
-  // Adiciona uma rota ao serviço
-  private addRoute(method: HttpMethod, path: string, handler: RouteHandler): void {
-    this.routes.push({ method, path, handler });
-  }
-
-  // Trata as requisições HTTP
-  private async handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-    // Habilita CORS
-    this.setCorsHeaders(res);
-    
-    // Responde ao preflight OPTIONS
-    if (req.method === 'OPTIONS') {
-      res.writeHead(204);
-      res.end();
-      return;
-    }
-
-    // Analisa a URL
-    const parsedUrl = url.parse(req.url || '', true);
-    const path = parsedUrl.pathname || '/';
-    const method = req.method as HttpMethod;
-
-    // Encontra a rota
-    const route = this.findRoute(method, path);
-    if (!route) {
-      this.sendError(res, 404, 'Rota não encontrada');
-      return;
-    }
-
-    // Executa o handler da rota
-    try {
-      await route.handler(req, res, route.params);
-    } catch (error) {
-      console.error('Erro não tratado:', error);
-      this.sendError(res, 500, 'Erro interno do servidor');
-    }
-  }
-
-  // Encontra uma rota que corresponda ao método e caminho
-  private findRoute(method: HttpMethod, path: string): { handler: RouteHandler; params: any } | null {
-    for (const route of this.routes) {
-      if (route.method !== method) continue;
-
-      // Analisa rotas com parâmetros
-      const routeParts = route.path.split('/');
-      const pathParts = path.split('/');
-
-      // Comprimento diferente, não é uma correspondência
-      if (routeParts.length !== pathParts.length) continue;
-
-      const params: Record<string, string> = {};
-      let match = true;
-
-      for (let i = 0; i < routeParts.length; i++) {
-        // Parâmetro dinâmico (:id)
-        if (routeParts[i].startsWith(':')) {
-          const paramName = routeParts[i].substring(1);
-          params[paramName] = pathParts[i];
-          continue;
-        }
-
-        // Correspondência exata
-        if (routeParts[i] !== pathParts[i]) {
-          match = false;
-          break;
-        }
-      }
-
-      // Se a rota corresponder, retorna o handler e os parâmetros
-      if (match) {
-        return { handler: route.handler, params };
-      }
-    }
-
-    return null;
-  }
-
-  // Define os cabeçalhos CORS
-  private setCorsHeaders(res: http.ServerResponse): void {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  }
-
-  // Envia uma resposta JSON
-  private sendJson(res: http.ServerResponse, data: any, statusCode: number = 200): void {
-    res.writeHead(statusCode, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(data));
-  }
-
-  // Envia uma resposta de erro
-  private sendError(res: http.ServerResponse, statusCode: number, message: string): void {
-    res.writeHead(statusCode, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: message }));
-  }
-}
-
-// Função assíncrona para iniciar o servidor
+// Inicia o servidor
 async function startServer() {
   try {
-    console.log('🚀 Iniciando Payroll Service...');
-    console.log(`📝 Configuração: porta=${PORT}, serviço de workers=${process.env.WORKER_SERVICE_URL || 'http://localhost:4015'}`);
-    
     // Conecta ao banco de dados
     await connectToDatabase();
     
-    // Cria e inicia o serviço payroll
-    const payrollService = new PayrollService();
-    payrollService.start();
+    // Cria o servidor HTTP
+    const server = http.createServer(async (req, res) => {
+      // Configurações CORS
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      
+      // Responde ao preflight OPTIONS
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+      
+      // Verifica a rota
+      const url = req.url || '/';
+      const method = req.method || 'GET';
+      
+      // Rota de status/saúde da API
+      if (url === '/health' && method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+          status: 'OK', 
+          service: 'Payroll Service',
+          timestamp: new Date().toISOString()
+        }));
+        return;
+      }
+      
+      // Encontra o handler correspondente
+      let handled = false;
+      
+      for (const route of allRoutes) {
+        // Verifica se o método corresponde
+        if (route.method !== method) continue;
+        
+        // Verifica padrões de rota simples e com parâmetros
+        const routePattern = routeToRegex(route.path);
+        const match = url.match(routePattern);
+        
+        if (match) {
+          // Extrai parâmetros da URL
+          const params = extractParams(route.path, url);
+          
+          // Executa o handler
+          try {
+            await route.handler(req, res, params);
+          } catch (error) {
+            console.error(`Erro não tratado na rota ${route.path}:`, error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Erro interno do servidor' }));
+          }
+          
+          handled = true;
+          break;
+        }
+      }
+      
+      // Se nenhuma rota foi encontrada
+      if (!handled) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Rota não encontrada' }));
+      }
+    });
     
-    console.log(`✅ Payroll Service iniciado com sucesso em http://localhost:${PORT}`);
+    // Inicia o servidor
+    server.listen(PORT, HOST, () => {
+      console.log(`🚀 Payroll Service iniciado em http://${HOST}:${PORT}`);
+      console.log(`📝 Configuração: host=${HOST}, porta=${PORT}`);
+      console.log(`🔍 Verificação de saúde: http://${HOST}:${PORT}/health`);
+      
+      // Exibe as rotas disponíveis
+      console.log('\n📊 Endpoints disponíveis:');
+      console.log(`GET /health - Verificação de saúde da API`);
+      
+      // Agrupa as rotas para uma melhor visualização
+      console.log('\n🔹 Rotas de Folha de Pagamento:');
+      payrollRoutes.forEach(route => {
+        console.log(`${route.method.padEnd(6)} ${route.path}`);
+      });
+      
+      console.log('\n🔹 Rotas de Holerites:');
+      payslipRoutes.forEach(route => {
+        console.log(`${route.method.padEnd(6)} ${route.path}`);
+      });
+    });
+    
+    // Tratamento de erro para o servidor
+    server.on('error', (error) => {
+      console.error(`❌ Erro no servidor:`, error);
+      process.exit(1);
+    });
   } catch (error) {
     console.error('❌ Erro ao iniciar o servidor:', error);
     process.exit(1);
   }
 }
 
+// Converte a rota para uma expressão regular
+function routeToRegex(path: string): RegExp {
+  const pattern = path
+    .replace(/:\w+/g, '([^/]+)')  // Substitui :param por grupo de captura
+    .replace(/\//g, '\\/');       // Escapa as barras
+  return new RegExp(`^${pattern}$`);
+}
+
+// Extrai parâmetros da URL
+function extractParams(routePath: string, url: string): Record<string, string> {
+  const params: Record<string, string> = {};
+  
+  // Divide a rota e a URL em partes
+  const routeParts = routePath.split('/');
+  const urlParts = url.split('/');
+  
+  // Verifica se o número de partes é igual
+  for (let i = 0; i < routeParts.length; i++) {
+    if (routeParts[i].startsWith(':')) {
+      const paramName = routeParts[i].substring(1);
+      params[paramName] = urlParts[i];
+    }
+  }
+  
+  return params;
+}
+
 // Inicia o servidor
 startServer();
 
-// Trata o encerramento do processo
+// Tratamento de exceções não capturadas
+process.on('uncaughtException', (error) => {
+  console.error('❌ Exceção não capturada:', error);
+  // Em produção, você pode notificar serviços de monitoramento aqui
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Rejeição não tratada em:', promise, 'razão:', reason);
+  // Em produção, você pode notificar serviços de monitoramento aqui
+});
+
+// Tratamento de encerramento do processo
 process.on('SIGINT', async () => {
   console.log('🛑 Payroll Service encerrando...');
   process.exit(0);

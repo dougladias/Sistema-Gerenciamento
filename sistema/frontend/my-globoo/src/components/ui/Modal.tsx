@@ -1,9 +1,9 @@
 // frontend/src/components/ui/Modal.tsx
 
 import React, { Fragment, useRef, useEffect } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import Button from './Button'; // Assuming Button is imported from a relative path
+import Button from './Button';
 
 interface ModalProps {
   isOpen: boolean;
@@ -12,7 +12,6 @@ interface ModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
-  // Propriedade adicional para controlar se o modal pode ser fechado clicando fora ou pelo ESC
   closeOnOutsideClick?: boolean;
 }
 
@@ -33,7 +32,7 @@ const Modal: React.FC<ModalProps> = ({
   size = 'md',
   closeOnOutsideClick = true
 }) => {
-  const initialFocusRef = useRef(null);
+  const modalRef = useRef<HTMLDivElement>(null);
   
   // Previne que o body role quando o modal estiver aberto
   useEffect(() => {
@@ -48,96 +47,107 @@ const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen]);
   
-  // Função de fechamento seguro para evitar fechamentos inesperados
-  const handleClose = () => {
-    if (closeOnOutsideClick) {
+  // Fecha o modal ao pressionar a tecla ESC
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen, onClose]);
+  
+  // Fecha o modal ao clicar fora dele
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (closeOnOutsideClick && e.target === e.currentTarget) {
       onClose();
     }
   };
 
   return (
-    <Transition appear show={isOpen} as={Fragment}>
-      <Dialog
-        as="div"
-        className="fixed inset-0 z-50 overflow-y-auto"
-        onClose={handleClose}
-        initialFocus={initialFocusRef}
-      >
-        <div className="min-h-screen px-4 text-center">
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          onClick={handleBackdropClick}
+        >
+          {/* Backdrop */}
+          <motion.div 
+            className="fixed inset-0 bg-black bg-opacity-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          />
+          
+          {/* Modal Content */}
+          <motion.div
+            ref={modalRef}
+            className={`${sizeClasses[size]} w-full bg-white rounded-lg shadow-xl z-50 overflow-hidden relative`}
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ 
+              type: "spring",
+              damping: 25,
+              stiffness: 300
+            }}
+            onClick={(e) => e.stopPropagation()} // Impede que cliques se propaguem para o fundo
           >
-            <div className="fixed inset-0 bg-transparent bg-opacity-30" />
-          </Transition.Child>
-
-          {/* Trick to center modal content */}
-          <span className="inline-block h-screen align-middle" aria-hidden="true">
-            &#8203;
-          </span>
-
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0 scale-95"
-            enterTo="opacity-100 scale-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100 scale-100"
-            leaveTo="opacity-0 scale-95"
-          >
-            <div className={`inline-block w-full ${sizeClasses[size]} p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl`}>
-              {/* Header */}
-              {title && (
-                <div className="flex items-center justify-between mb-4">
-                  <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                    {title}
-                  </Dialog.Title>
-                  <button
-                    type="button"
-                    className="text-gray-400 hover:text-gray-500 focus:outline-none"
-                    onClick={onClose}
-                    ref={initialFocusRef}
-                  >
-                    <span className="sr-only">Fechar</span>
-                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
-                  </button>
-                </div>
-              )}
-
-              {/* Body */}
-              <div className="mt-2">
-                {children}
+            {/* Header */}
+            {title && (
+              <div className="flex items-center justify-between p-4 border-b">
+                <h3 className="text-lg font-medium text-gray-900">{title}</h3>
+                <motion.button
+                  type="button"
+                  className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                  onClick={onClose}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <span className="sr-only">Fechar</span>
+                  <XMarkIcon className="h-6 w-6" />
+                </motion.button>
               </div>
-
-              {/* Footer */}
-              {footer && (
-                <div className="mt-4 flex justify-end space-x-3">
-                  {footer}
-                </div>
-              )}
+            )}
+            
+            {/* Body */}
+            <div className="p-6">
+              {children}
             </div>
-          </Transition.Child>
-        </div>
-      </Dialog>
-    </Transition>
+            
+            {/* Footer */}
+            {footer && (
+              <div className="p-4 border-t flex justify-end space-x-3">
+                {footer}
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
 export default Modal;
 
-// Example usage of the Modal component
+// Exemplo de uso do componente Modal
 export const Example = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
 
   const handleDeleteConfirm = () => {
     setLoading(true);
-    // Simulate an API call
+    // Simula uma chamada de API
     setTimeout(() => {
       setLoading(false);
       setIsDeleteModalOpen(false);

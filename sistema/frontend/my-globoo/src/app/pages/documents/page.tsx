@@ -312,21 +312,21 @@ const DocumentsPage: React.FC = () => {
 
   return (
     <motion.div 
-      className="p-6 ml-[var(--sidebar-width,4.5rem)] transition-all duration-300 bg-gray-50 min-h-screen"
+      className="p-6 ml-[var(--sidebar-width,4.5rem)] transition-all duration-300 bg-gray-50 dark:bg-gray-900 min-h-screen"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
       style={{ width: "calc(100% - var(--sidebar-width, 4.5rem))" }}
     >
       <motion.div variants={itemVariants}>
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">Gerenciamento de Documentos</h1>
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Gerenciamento de Documentos</h1>
       </motion.div>
 
       {/* Seleção de funcionário */}
       <motion.div className="mb-6" variants={itemVariants}>
-        <label className="block mb-2 font-medium">Funcionário:</label>
+        <label className="block mb-2 font-medium text-gray-800 dark:text-gray-200">Funcionário:</label>
         <select
-          className="w-full border rounded p-2"
+          className="w-full border rounded p-2 bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
           value={selectedWorkerId}
           onChange={handleWorkerSelect}
         >
@@ -343,7 +343,9 @@ const DocumentsPage: React.FC = () => {
       {message.text && (
         <motion.div
           className={`mb-4 p-3 rounded ${
-            message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            message.type === 'success'
+              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+              : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
           }`}
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -357,33 +359,33 @@ const DocumentsPage: React.FC = () => {
         <>
           {/* Formulário de upload */}
           <motion.div 
-            className="mb-8 bg-white p-4 rounded-md shadow border"
+            className="mb-8 bg-white dark:bg-gray-800 p-4 rounded-md shadow border dark:border-gray-700"
             variants={itemVariants}
           >
-            <h2 className="text-xl font-semibold mb-4">Upload de Documento</h2>
+            <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">Upload de Documento</h2>
             <form onSubmit={uploadDocument}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block mb-1 font-medium">Arquivo:</label>
+                  <label className="block mb-1 font-medium text-gray-800 dark:text-gray-200">Arquivo:</label>
                   <input
                     id="file-input"
                     type="file"
-                    className="w-full border rounded p-2"
+                    className="w-full border rounded p-2 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                     onChange={handleFileChange}
                     required
                   />
                   {file && (
-                    <div className="mt-1 text-sm text-gray-600">
+                    <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                       {file.name} ({formatFileSize(file.size)})
                     </div>
                   )}
                 </div>
                 
                 <div>
-                  <label className="block mb-1 font-medium">Categoria:</label>
+                  <label className="block mb-1 font-medium text-gray-800 dark:text-gray-200">Categoria:</label>
                   <select
                     name="category"
-                    className="w-full border rounded p-2"
+                    className="w-full border rounded p-2 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                     value={uploadFormData.category}
                     onChange={handleUploadFormChange}
                   >
@@ -394,10 +396,10 @@ const DocumentsPage: React.FC = () => {
                 </div>
                 
                 <div className="md:col-span-2">
-                  <label className="block mb-1 font-medium">Descrição:</label>
+                  <label className="block mb-1 font-medium text-gray-800 dark:text-gray-200">Descrição:</label>
                   <textarea
                     name="description"
-                    className="w-full border rounded p-2"
+                    className="w-full border rounded p-2 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                     rows={2}
                     value={uploadFormData.description}
                     onChange={handleUploadFormChange}
@@ -408,7 +410,7 @@ const DocumentsPage: React.FC = () => {
               <div className="mt-4">
                 <motion.button
                   type="submit"
-                  className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded"
+                  className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded dark:bg-cyan-600 dark:hover:bg-cyan-700"
                   disabled={loading}
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
@@ -421,10 +423,10 @@ const DocumentsPage: React.FC = () => {
 
           {/* Lista de documentos */}
           <motion.div 
-            className="bg-white p-4 rounded-md shadow border"
+            className="bg-white dark:bg-gray-800 p-4 rounded-md shadow border dark:border-gray-700"
             variants={itemVariants}
           >
-            <h2 className="text-xl font-semibold mb-4">Documentos do Funcionário</h2>
+            <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">Documentos do Funcionário</h2>
             
             {loading && (
               <motion.div 
@@ -433,7 +435,7 @@ const DocumentsPage: React.FC = () => {
                 animate={{ opacity: 1 }}
               >
                 <motion.div 
-                  className="h-10 w-10 border-t-2 border-b-2 border-blue-500 rounded-full"
+                  className="h-10 w-10 border-t-2 border-b-2 border-blue-500 dark:border-cyan-400 rounded-full"
                   animate={{ rotate: 360 }}
                   transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                 />
@@ -441,38 +443,37 @@ const DocumentsPage: React.FC = () => {
             )}
             
             {!loading && workerFiles.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 Nenhum documento encontrado para este funcionário.
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full border">
-                  <thead className="bg-gray-100">
+                <table className="min-w-full border dark:border-gray-700">
+                  <thead className="bg-gray-100 dark:bg-gray-900">
                     <tr>
-                      <th className="border px-4 py-2 text-left">Nome</th>
-                      <th className="border px-4 py-2 text-left">Descrição</th>
-                      <th className="border px-4 py-2 text-left">Categoria</th>
-                      <th className="border px-4 py-2 text-left">Tamanho</th>
-                      <th className="border px-4 py-2 text-left">Data de Upload</th>
-                      <th className="border px-4 py-2 text-center">Ações</th>
+                      <th className="border px-4 py-2 text-left dark:border-gray-700 dark:text-gray-200">Nome</th>
+                      <th className="border px-4 py-2 text-left dark:border-gray-700 dark:text-gray-200">Descrição</th>
+                      <th className="border px-4 py-2 text-left dark:border-gray-700 dark:text-gray-200">Categoria</th>
+                      <th className="border px-4 py-2 text-left dark:border-gray-700 dark:text-gray-200">Tamanho</th>
+                      <th className="border px-4 py-2 text-left dark:border-gray-700 dark:text-gray-200">Data de Upload</th>
+                      <th className="border px-4 py-2 text-center dark:border-gray-700 dark:text-gray-200">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {workerFiles.map((file, index) => (
                       <motion.tr 
                         key={String(file._id)} 
-                        className="hover:bg-gray-50"
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
                       >
-                        {/* Table row content remains the same */}
-                        <td className="border px-4 py-2">{file.originalName}</td>
-                        <td className="border px-4 py-2">
+                        <td className="border px-4 py-2 dark:border-gray-700 dark:text-gray-100">{file.originalName}</td>
+                        <td className="border px-4 py-2 dark:border-gray-700 dark:text-gray-100">
                           {editingFileId === String(file._id) ? (
                             <textarea
                               name="description"
-                              className="w-full border rounded p-1"
+                              className="w-full border rounded p-1 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                               value={editFormData.description}
                               onChange={handleEditFormChange}
                             />
@@ -480,11 +481,11 @@ const DocumentsPage: React.FC = () => {
                             file.description || "-"
                           )}
                         </td>
-                        <td className="border px-4 py-2">
+                        <td className="border px-4 py-2 dark:border-gray-700 dark:text-gray-100">
                           {editingFileId === String(file._id) ? (
                             <select
                               name="category"
-                              className="w-full border rounded p-1"
+                              className="w-full border rounded p-1 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                               value={editFormData.category}
                               onChange={handleEditFormChange}
                             >
@@ -500,14 +501,14 @@ const DocumentsPage: React.FC = () => {
                               : "Outros"
                           )}
                         </td>
-                        <td className="border px-4 py-2">{formatFileSize(file.size)}</td>
-                        <td className="border px-4 py-2">{formatDate(file.uploadDate)}</td>
-                        <td className="border px-4 py-2 text-center">
+                        <td className="border px-4 py-2 dark:border-gray-700 dark:text-gray-100">{formatFileSize(file.size)}</td>
+                        <td className="border px-4 py-2 dark:border-gray-700 dark:text-gray-100">{formatDate(file.uploadDate)}</td>
+                        <td className="border px-4 py-2 text-center dark:border-gray-700">
                           {editingFileId === String(file._id) ? (
                             <div className="flex justify-center space-x-2">
                               <motion.button
                                 onClick={saveDocumentEdit}
-                                className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded"
+                                className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded dark:bg-green-700 dark:hover:bg-green-800"
                                 title="Salvar"
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
@@ -519,7 +520,7 @@ const DocumentsPage: React.FC = () => {
                             <div className="flex justify-center space-x-2">
                               <motion.button
                                 onClick={() => downloadDocument(file)}
-                                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded"
+                                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded dark:bg-cyan-600 dark:hover:bg-cyan-700"
                                 title="Download"
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
@@ -528,7 +529,7 @@ const DocumentsPage: React.FC = () => {
                               </motion.button>                              
                               <motion.button
                                 onClick={() => deleteDocument(String(file._id))}
-                                className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded"
+                                className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded dark:bg-red-700 dark:hover:bg-red-800"
                                 title="Excluir"
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
@@ -550,10 +551,10 @@ const DocumentsPage: React.FC = () => {
 
       {!selectedWorkerId && (
         <motion.div 
-          className="bg-yellow-50 border border-yellow-100 p-8 rounded-md text-center"
+          className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-100 dark:border-yellow-700 p-8 rounded-md text-center"
           variants={itemVariants}
         >
-          <p className="text-yellow-700 text-lg">
+          <p className="text-yellow-700 dark:text-yellow-300 text-lg">
             Selecione um funcionário para gerenciar seus documentos.
           </p>
         </motion.div>

@@ -5,19 +5,15 @@ import {
   TEMPLATE_SERVICE_HOST, 
   TEMPLATE_SERVICE_PORT,
   WORKER_SERVICE_HOST,
-  WORKER_SERVICE_PORT,
-  PAYROLL_SERVICE_HOST,
-  PAYROLL_SERVICE_PORT
+  WORKER_SERVICE_PORT 
 } from './config/env';
 import { handleWorkerRoutes } from './routes/worker.routes';
 import { handleDocumentRoutes } from './routes/document.routes';
 import { handleLogRoutes } from './routes/timeSheet.routes';
 import { handleTemplateRoutes } from './routes/template.routes';
-import { handlePayrollRoutes } from './routes/payroll.routes';
 import { sendError } from './middlewares/errorHandler';
 import { checkTemplateService } from './services/templateServiceChecker';
 import { checkWorkerService } from './services/workerServiceChecker';
-import { checkPayrollService } from './services/payrollServiceChecker';
 
 // API Gateway para rotear requisições para os serviços apropriados
 export class SimpleApiGateway {
@@ -60,7 +56,7 @@ export class SimpleApiGateway {
       if (await handleDocumentRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
         return;
       }
-
+      
       // Tenta processar as rotas de Time Sheet (registro de ponto)
       if (await handleLogRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
         return;
@@ -73,11 +69,6 @@ export class SimpleApiGateway {
 
       // Tenta processar as rotas de templates
       if (await handleTemplateRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
-        return;
-      }
-
-      // Tenta processar as rotas de folha de pagamento
-      if (await handlePayrollRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
         return;
       }
 
@@ -110,17 +101,10 @@ async function startGateway() {
     Number(WORKER_SERVICE_PORT)
   );
   
-  // Verifica se o serviço de folha de pagamento está disponível
-  const payrollServiceAvailable = await checkPayrollService(
-    PAYROLL_SERVICE_HOST,
-    Number(PAYROLL_SERVICE_PORT)
-  );
-  
   // Exibe o status dos serviços
   console.log(`📊 Status dos serviços:`);  
   console.log(`Serviço de Workers (inclui Documentos e TimeSheet): ${workerServiceAvailable ? '✅ Online' : '❌ Offline'}`);
   console.log(`Serviço de Templates: ${templateServiceAvailable ? '✅ Online' : '❌ Offline'}`);
-  console.log(`Serviço de Folha de Pagamento: ${payrollServiceAvailable ? '✅ Online' : '❌ Offline'}`);
   
   // Inicia o gateway mesmo que alguns serviços estejam offline
   apiGateway.start();

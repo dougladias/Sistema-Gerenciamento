@@ -22,6 +22,7 @@ SERVICES=(
   "worker-service"  
   "template-service"
   "payroll-service"
+  "auth-service"
 
   #Sempre deixe o api-gateway por último
   # pois ele depende dos outros microsserviços

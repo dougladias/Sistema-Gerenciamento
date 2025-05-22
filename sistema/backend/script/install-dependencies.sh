@@ -17,6 +17,7 @@ SERVICES=(
   "worker-service"
   "template-service"
   "payroll-service"
+  "auth-service"
 )
 
 # Função para instalar dependências em um serviço

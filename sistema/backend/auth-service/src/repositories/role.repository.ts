@@ -1,118 +1,121 @@
-import createRoleModel, { IRole } from '../models/role.model';
-import mongoose from 'mongoose';
+import { connectToDatabase } from '../config/database';
+import { IRole, createRoleModel } from '../models/role.model';
 
-export class RoleRepository {
-  private Role = createRoleModel();
+// Interface para o repositório de Roles
+export interface IRoleRepository {
+  findAll(): Promise<IRole[]>;
+  findById(id: string): Promise<IRole | null>;
+  findByName(name: string): Promise<IRole | null>;
+  findDefault(): Promise<IRole | null>;
+  create(role: Omit<IRole, '_id'>): Promise<IRole>;
+  update(id: string, role: Partial<IRole>): Promise<IRole | null>;
+  delete(id: string): Promise<boolean>;
+  addPermission(id: string, permission: string): Promise<IRole | null>;
+  removePermission(id: string, permission: string): Promise<IRole | null>;
+  countUsers(roleId: string): Promise<number>;
+}
 
-  async create(roleData: Partial<IRole>): Promise<IRole> {
-    const role = new this.Role(roleData);
-    return await role.save();
+// Implementação do repositório de Roles
+export class RoleRepository implements IRoleRepository {
+  
+  // Busca todas as roles
+  async findAll(): Promise<IRole[]> {
+    await connectToDatabase();
+    const RoleModel = createRoleModel();
+    
+    return RoleModel.find()
+      .sort({ name: 1 })
+      .exec();
   }
 
+  // Busca role por ID
   async findById(id: string): Promise<IRole | null> {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return null;
-    }
-    return await this.Role.findById(id).populate('permissions');
+    await connectToDatabase();
+    const RoleModel = createRoleModel();
+    
+    return RoleModel.findById(id).exec();
   }
 
+  // Busca role por nome
   async findByName(name: string): Promise<IRole | null> {
-    return await this.Role.findOne({ name: name.toLowerCase() }).populate('permissions');
+    await connectToDatabase();
+    const RoleModel = createRoleModel();
+    
+    return RoleModel.findOne({ name }).exec();
   }
 
-  async findAll(filter: any = {}): Promise<IRole[]> {
-    return await this.Role.find(filter)
-      .populate('permissions')
-      .sort({ name: 1 });
-  }
-
+  // Busca role padrão
   async findDefault(): Promise<IRole | null> {
-    return await this.Role.findOne({ isDefault: true }).populate('permissions');
+    await connectToDatabase();
+    const RoleModel = createRoleModel();
+    
+    return RoleModel.findOne({ isDefault: true }).exec();
   }
 
+  // Cria nova role
+  async create(roleData: Omit<IRole, '_id'>): Promise<IRole> {
+    await connectToDatabase();
+    const RoleModel = createRoleModel();
+    
+    const newRole = new RoleModel(roleData);
+    return newRole.save();
+  }
+
+  // Atualiza role
   async update(id: string, updateData: Partial<IRole>): Promise<IRole | null> {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return null;
-    }
+    await connectToDatabase();
+    const RoleModel = createRoleModel();
     
-    // Não permite alterar o status de sistema
-    delete updateData.isSystem;
-    delete updateData.createdAt;
-    
-    return await this.Role.findByIdAndUpdate(
+    return RoleModel.findByIdAndUpdate(
       id,
       { $set: updateData },
-      { new: true, runValidators: true }
-    ).populate('permissions');
-  }
-
-  async delete(id: string): Promise<IRole | null> {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return null;
-    }
-    
-    // Verifica se não é uma role do sistema
-    const role = await this.Role.findById(id);
-    if (role && role.isSystem) {
-      throw new Error('Não é possível excluir roles do sistema');
-    }
-    
-    return await this.Role.findByIdAndDelete(id);
-  }
-
-  async addPermission(roleId: string, permissionId: string): Promise<IRole | null> {
-    if (!mongoose.Types.ObjectId.isValid(roleId) || !mongoose.Types.ObjectId.isValid(permissionId)) {
-      return null;
-    }
-    
-    return await this.Role.findByIdAndUpdate(
-      roleId,
-      { $addToSet: { permissions: permissionId } },
       { new: true }
-    ).populate('permissions');
+    ).exec();
   }
 
-  async removePermission(roleId: string, permissionId: string): Promise<IRole | null> {
-    if (!mongoose.Types.ObjectId.isValid(roleId) || !mongoose.Types.ObjectId.isValid(permissionId)) {
-      return null;
-    }
+  // Deleta role
+  async delete(id: string): Promise<boolean> {
+    await connectToDatabase();
+    const RoleModel = createRoleModel();
     
-    return await this.Role.findByIdAndUpdate(
-      roleId,
-      { $pull: { permissions: permissionId } },
+    const result = await RoleModel.findByIdAndDelete(id).exec();
+    return result !== null;
+  }
+
+  // Adiciona permissão à role
+  async addPermission(id: string, permission: string): Promise<IRole | null> {
+    await connectToDatabase();
+    const RoleModel = createRoleModel();
+    
+    return RoleModel.findByIdAndUpdate(
+      id,
+      { $addToSet: { permissions: permission } },
       { new: true }
-    ).populate('permissions');
+    ).exec();
   }
 
-  async setPermissions(roleId: string, permissionIds: string[]): Promise<IRole | null> {
-    if (!mongoose.Types.ObjectId.isValid(roleId)) {
-      return null;
-    }
+  // Remove permissão da role
+  async removePermission(id: string, permission: string): Promise<IRole | null> {
+    await connectToDatabase();
+    const RoleModel = createRoleModel();
     
-    // Valida todos os IDs de permissão
-    const validIds = permissionIds.filter(id => mongoose.Types.ObjectId.isValid(id));
-    
-    return await this.Role.findByIdAndUpdate(
-      roleId,
-      { permissions: validIds },
+    return RoleModel.findByIdAndUpdate(
+      id,
+      { $pull: { permissions: permission } },
       { new: true }
-    ).populate('permissions');
+    ).exec();
   }
 
-  async exists(name: string): Promise<boolean> {
-    const count = await this.Role.countDocuments({ name: name.toLowerCase() });
-    return count > 0;
-  }
-
-  async createDefault(roleData: Partial<IRole>): Promise<IRole> {
-    // Remove qualquer role default anterior
-    await this.Role.updateMany({ isDefault: true }, { isDefault: false });
+  // Conta quantos usuários usam esta role
+  async countUsers(roleId: string): Promise<number> {
+    await connectToDatabase();
+    const { createUserModel } = require('../models/user.model');
+    const UserModel = createUserModel();
     
-    // Cria a nova role como default
-    return await this.create({ ...roleData, isDefault: true });
+    return UserModel.countDocuments({ role: roleId });
   }
 }
 
-// Exporta uma instância única do repositório
+// Exporta instância única do repositório
 export const roleRepository = new RoleRepository();
 export default roleRepository;

@@ -1,42 +1,45 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 
+// Interface para Role
 export interface IRole extends Document {
-  _id: mongoose.Types.ObjectId;
   name: string;
   description: string;
-  permissions: mongoose.Types.ObjectId[];
+  permissions: string[];
   isDefault: boolean;
-  isSystem: boolean;
   createdAt: Date;
   updatedAt: Date;
-  isAdmin: boolean;
 }
 
+// Schema para Role
 const RoleSchema = new Schema<IRole>(
   {
-    name: {
-      type: String,
-      required: true,
-      // Mantendo unique: true que já cria um índice único implicitamente
-      unique: true, 
+    name: { 
+      type: String, 
+      required: true, 
+      unique: true, // Isso já cria um índice, não precisamos redefini-lo abaixo
       trim: true,
-      lowercase: true
+      minlength: 2,
+      maxlength: 50
     },
-    description: {
+    description: { 
+      type: String, 
+      required: true,
+      trim: true,
+      maxlength: 255
+    },
+    permissions: [{ 
       type: String,
-      required: true
-    },
-    permissions: [{
-      type: Schema.Types.ObjectId,
-      ref: 'Permission'
+      validate: {
+        validator: function(permission: string) {
+          // Valida formato: resource:action
+          return /^[a-z]+:[a-z]+$/.test(permission);
+        },
+        message: 'Permission must be in format "resource:action"'
+      }
     }],
-    isDefault: {
-      type: Boolean,
-      default: false
-    },
-    isSystem: {
-      type: Boolean,
-      default: false
+    isDefault: { 
+      type: Boolean, 
+      default: false 
     }
   },
   {
@@ -45,23 +48,28 @@ const RoleSchema = new Schema<IRole>(
   }
 );
 
-// Comentando ou removendo esta linha, pois unique: true já cria um índice
-// RoleSchema.index({ name: 1 });
+// Índices para performance
+// RoleSchema.index({ name: 1 }); // Remova ou comente esta linha
+RoleSchema.index({ isDefault: 1 });
 
-// Previne exclusão de roles do sistema
-RoleSchema.pre('findOneAndDelete', async function(next) {
-  const role = await this.model.findOne(this.getQuery());
-  if (role && role.isSystem) {
-    next(new Error('Não é possível excluir roles do sistema'));
+// Middleware para validar se ao menos uma permissão foi fornecida
+RoleSchema.pre('save', function(next) {
+  if (this.permissions.length === 0) {
+    next(new Error('Role deve ter pelo menos uma permissão'));
   } else {
     next();
   }
 });
 
-// Função para criar o modelo Role
-export const createRoleModel = () => {
-  return mongoose.models.Role || mongoose.model<IRole>('Role', RoleSchema);
+// Método estático para buscar role padrão
+RoleSchema.statics.findDefault = function() {
+  return this.findOne({ isDefault: true });
 };
 
-export default createRoleModel;
+// Função para criar modelo
+export const createRoleModel = () => {
+  return mongoose.models.Role || mongoose.model<IRole>("Role", RoleSchema);
+};
+
 export { RoleSchema };
+export default createRoleModel;

@@ -1,216 +1,397 @@
-import express, { NextFunction } from 'express';
-import { Request, Response } from 'express';
-import asyncHandler from 'express-async-handler';
-import userRepository from '../repositories/user.repository';
-import roleRepository from '../repositories/role.repository';
-import permissionRepository from '../repositories/permission.repository';
-import { generateToken, verifyToken, extractTokenFromHeader } from '../utils/jwt';
-import AuthMiddleware from '../middlewares/auth.middleware';
+import http from 'http';
+import { authService } from '../services/auth.service';
+import { connectToDatabase } from '../config/database';
 
-// Extende o tipo Request para incluir a propriedade 'user'
-declare global {
-  namespace Express {
-    interface User {
-      id: string;
-      email: string;
-      roleId: string;
-      [key: string]: any;
-    }
-    interface Request {
-      user?: User;
-    }
-  }
+// Função para ler o corpo da requisição
+export async function readRequestBody(req: http.IncomingMessage): Promise<any> {
+  return new Promise((resolve) => {
+    const body: Buffer[] = [];
+    req.on('data', (chunk: Buffer) => {
+      body.push(chunk);
+    });
+    req.on('end', () => {
+      const bodyString = Buffer.concat(body).toString();
+      if (bodyString) {
+        try {
+          resolve(JSON.parse(bodyString));
+        } catch (e) {
+          resolve(bodyString);
+        }
+      } else {
+        resolve({});
+      }
+    });
+  });
 }
 
-const router = express.Router();
-
-router.post('/login', asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      res.status(400).json({ error: 'Email e senha são obrigatórios' });
-      return;
-    }
-
-    // Buscar usuário com role
-    const user = await userRepository.findByEmail(email);
-    if (!user || !(await user.comparePassword(password))) {
-      res.status(401).json({ error: 'Credenciais inválidas' });
-      return;
-    }
-
-    if (!user.isActive) {
-      res.status(403).json({ error: 'Usuário inativo' });
-      return;
-    }
-
-    // Atualizar último login
-    await userRepository.updateLastLogin(user._id.toString());
-
-    // Buscar role com permissões
-    const role = await roleRepository.findById(user.role.toString());
-
-    // Gerar token
-    const token = generateToken({
-      userId: user._id.toString(),
-      email: user.email,
-      roleId: user.role.toString()
-    });
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: role
-      }
-    });
-  } catch (error) {
-    console.error('Erro no login:', error);
-    res.status(500).json({ error: 'Erro ao fazer login' });
-  }
-}));
-
-// Registro
-router.post('/register', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { email, password, name } = req.body;
-    
-    if (!email || !password || !name) {
-      res.status(400).json({ error: 'Todos os campos são obrigatórios' });
-      return;
-    }
-    
-    if (password.length < 6) {
-      res.status(400).json({ error: 'A senha deve ter no mínimo 6 caracteres' });
-      return;
-    }
-    
-    // Verificar se usuário já existe
-    if (await userRepository.exists(email)) {
-      res.status(409).json({ error: 'Email já cadastrado' });
-      return;
-    }
-    
-    // Buscar role padrão
-    const defaultRole = await roleRepository.findDefault();
-    if (!defaultRole) {
-      res.status(500).json({ error: 'Role padrão não encontrada' });
-      return;
-    }
-    
-    // Criar usuário
-    const user = await userRepository.create({
-      email,
-      password,
-      name,
-      role: defaultRole._id
-    });
-    
-    // Gerar token
-    const token = generateToken({
-      userId: user._id.toString(),
-      email: user.email,
-      roleId: defaultRole._id.toString()
-    });
-    
-    res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: {
-          id: defaultRole._id,
-          name: defaultRole.name
+// Definição das rotas de autenticação
+export const authRoutes = [
+  // ===== LOGIN =====
+  {
+    method: 'POST',
+    path: '/auth/login',
+    handler: async (req: http.IncomingMessage, res: http.ServerResponse) => {
+      try {
+        await connectToDatabase();
+        const body = await readRequestBody(req);
+        
+        // Validação básica
+        if (!body.email || !body.password) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: 'Email e senha são obrigatórios'
+          }));
+          return;
         }
+
+        // Valida formato do email
+        const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+        if (!emailRegex.test(body.email)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: 'Formato de email inválido'
+          }));
+          return;
+        }
+
+        // Realiza o login
+        const result = await authService.login({
+          email: body.email,
+          password: body.password
+        });
+
+        const statusCode = result.success ? 200 : 401;
+        res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+
+      } catch (error) {
+        console.error('Erro na rota de login:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: false,
+          error: 'Erro interno do servidor'
+        }));
       }
-    });
-  } catch (error) {
-    console.error('Erro no registro:', error);
-    res.status(500).json({ error: 'Erro ao registrar usuário' });
-  }
-}));
-
-// Verificar token
-router.get('/verify',  asyncHandler(async (req, res, next) => {
-  try {
-    const token = extractTokenFromHeader(req.headers.authorization);
-    if (!token) {
-      res.status(401).json({ error: 'Token não fornecido' });
-      return;
     }
+  },
 
-    const payload = verifyToken(token);
-    const user = await userRepository.findById(payload.userId);
+  // ===== LOGOUT =====
+  {
+    method: 'POST',
+    path: '/auth/logout',
+    handler: async (req: http.IncomingMessage, res: http.ServerResponse) => {
+      try {
+        // Busca o token no header Authorization
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: 'Token de acesso não fornecido'
+          }));
+          return;
+        }
 
-    if (!user || !user.isActive) {
-      res.status(401).json({ error: 'Usuário inválido' });
-      return;
-    }
+        const token = authHeader.substring(7);
+        
+        // Realiza o logout
+        const result = await authService.logout(token);
 
-    const role = await roleRepository.findById(user.role.toString());
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
 
-    res.json({
-      valid: true,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: role
+      } catch (error) {
+        console.error('Erro na rota de logout:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: false,
+          error: 'Erro interno do servidor'
+        }));
       }
-    });
-    return;
-  } catch (error) {
-    res.status(401).json({ error: 'Token inválido' });
-    return;
-  }
-}));
-
-// Verificar permissão específica
-router.post('/check-permission', AuthMiddleware.authenticate,  asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { resource, action, route } = req.body;
-    
-    // Buscar usuário com role e permissões
-    const user = await userRepository.findById(req.user!.id);
-    if (!user) {
-      res.json({ hasPermission: false });
-      return;
     }
+  },
 
-    const role = await roleRepository.findById(user.role.toString());
-    if (!role) {
-      res.json({ hasPermission: false });
-      return;
+  // ===== REFRESH TOKEN =====
+  {
+    method: 'POST',
+    path: '/auth/refresh',
+    handler: async (req: http.IncomingMessage, res: http.ServerResponse) => {
+      try {
+        const body = await readRequestBody(req);
+        
+        if (!body.refreshToken) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: 'Refresh token é obrigatório'
+          }));
+          return;
+        }
+
+        // Renova o token
+        const result = await authService.refreshToken(body.refreshToken);
+
+        const statusCode = result.success ? 200 : 401;
+        res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+
+      } catch (error) {
+        console.error('Erro na rota de refresh:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: false,
+          error: 'Erro interno do servidor'
+        }));
+      }
     }
+  },
 
-    let hasPermission = false;
+  // ===== VALIDAR TOKEN =====
+  {
+    method: 'POST',
+    path: '/auth/validate',
+    handler: async (req: http.IncomingMessage, res: http.ServerResponse) => {
+      try {
+        const body = await readRequestBody(req);
+        
+        if (!body.token) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: 'Token é obrigatório'
+          }));
+          return;
+        }
 
-    if (route) {
-      // Verificar permissão de rota
-      const routePermissions = await permissionRepository.findByRoute(route);
-      const routePermissionIds = routePermissions.map(p => p._id.toString());
-      
-      hasPermission = role.permissions.some(permId => 
-        routePermissionIds.includes(permId.toString())
-      );
-    } else if (resource && action) {
-      // Verificar permissão de recurso/ação
-      const permission = await permissionRepository.findByResourceAndAction(resource, action);
-      if (permission) {
-        hasPermission = role.permissions.some(permId => 
-          permId.toString() === permission._id.toString()
+        // Valida o token
+        const validation = await authService.validateToken(body.token);
+
+        if (validation.valid) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: true,
+            message: 'Token válido',
+            data: {
+              user: validation.user,
+              payload: validation.payload
+            }
+          }));
+        } else {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: 'Token inválido ou expirado'
+          }));
+        }
+
+      } catch (error) {
+        console.error('Erro na rota de validação:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: false,
+          error: 'Erro interno do servidor'
+        }));
+      }
+    }
+  },
+
+  // ===== DADOS DO USUÁRIO LOGADO =====
+  {
+    method: 'GET',
+    path: '/auth/me',
+    handler: async (req: http.IncomingMessage, res: http.ServerResponse) => {
+      try {
+        // Busca o token no header Authorization
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: 'Token de acesso não fornecido'
+          }));
+          return;
+        }
+
+        const token = authHeader.substring(7);
+        
+        // Busca dados do usuário
+        const result = await authService.getMe(token);
+
+        const statusCode = result.success ? 200 : 401;
+        res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+
+      } catch (error) {
+        console.error('Erro na rota me:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: false,
+          error: 'Erro interno do servidor'
+        }));
+      }
+    }
+  },
+
+  // ===== VERIFICAR PERMISSÃO =====
+  {
+    method: 'POST',
+    path: '/auth/check-permission',
+    handler: async (req: http.IncomingMessage, res: http.ServerResponse) => {
+      try {
+        // Busca o token no header Authorization
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: 'Token de acesso não fornecido'
+          }));
+          return;
+        }
+
+        const token = authHeader.substring(7);
+        const body = await readRequestBody(req);
+        
+        if (!body.permission) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: 'Permissão é obrigatória'
+          }));
+          return;
+        }
+
+        // Valida o token e verifica permissão
+        const validation = await authService.validateToken(token);
+        
+        if (!validation.valid || !validation.user) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: 'Token inválido'
+          }));
+          return;
+        }
+
+        // Verifica se tem a permissão
+        const hasPermission = authService.hasPermission(
+          validation.user.allPermissions,
+          body.permission
         );
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          data: {
+            hasPermission,
+            permission: body.permission,
+            user: {
+              id: validation.user.id,
+              name: validation.user.name,
+              email: validation.user.email
+            }
+          }
+        }));
+
+      } catch (error) {
+        console.error('Erro na rota check-permission:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: false,
+          error: 'Erro interno do servidor'
+        }));
       }
     }
+  },
 
-    res.json({ hasPermission });
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao verificar permissão' });
+  // ===== STATUS/HEALTH CHECK =====
+  {
+    method: 'GET',
+    path: '/auth/status',
+    handler: async (req: http.IncomingMessage, res: http.ServerResponse) => {
+      try {
+        await connectToDatabase();
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          service: 'auth-service',
+          status: 'healthy',
+          timestamp: new Date().toISOString(),
+          version: '1.0.0'
+        }));
+
+      } catch (error) {
+        console.error('Erro na rota de status:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: false,
+          service: 'auth-service',
+          status: 'unhealthy',
+          error: 'Erro de conexão com banco de dados'
+        }));
+      }
+    }
+  },
+
+  // ===== INFORMAÇÕES DO SISTEMA =====
+  {
+    method: 'GET',
+    path: '/auth/info',
+    handler: async (req: http.IncomingMessage, res: http.ServerResponse) => {
+      try {
+        const info = {
+          name: 'Sistema de Autenticação',
+          version: '1.0.0',
+          description: 'Serviço de autenticação e autorização',
+          features: [
+            'Login/Logout',
+            'JWT Tokens',
+            'Refresh Tokens',
+            'Controle de Permissões',
+            'Gestão de Usuários',
+            'Gestão de Roles'
+          ],
+          endpoints: {
+            auth: [
+              'POST /auth/login',
+              'POST /auth/logout',
+              'POST /auth/refresh',
+              'POST /auth/validate',
+              'GET /auth/me',
+              'POST /auth/check-permission'
+            ],
+            backoffice: [
+              'GET /backoffice/dashboard',
+              'GET /backoffice/users',
+              'POST /backoffice/users',
+              'GET /backoffice/roles',
+              'POST /backoffice/roles'
+            ]
+          }
+        };
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          data: info
+        }));
+
+      } catch (error) {
+        console.error('Erro na rota de info:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: false,
+          error: 'Erro interno do servidor'
+        }));
+      }
+    }
   }
-}));
+];
 
-export default router;
+export default authRoutes;

@@ -1,73 +1,72 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 
+// Interface para Permission
 export interface IPermission extends Document {
-  _id: mongoose.Types.ObjectId;
   resource: string;
   action: string;
-  route?: string;
   description: string;
+  category: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
+// Schema para Permission
 const PermissionSchema = new Schema<IPermission>(
   {
-    resource: {
-      type: String,
+    resource: { 
+      type: String, 
       required: true,
-      trim: true,
+      enum: ['workers', 'documents', 'timesheet', 'backoffice', 'reports'],
       lowercase: true
     },
-    action: {
-      type: String,
+    action: { 
+      type: String, 
       required: true,
-      enum: ['create', 'read', 'update', 'delete', 'access', 'manage'],
-      trim: true,
+      enum: ['read', 'create', 'update', 'delete', 'upload', 'download', 'access', 'manage', 'users'],
       lowercase: true
     },
-    route: {
-      type: String,
+    description: { 
+      type: String, 
       required: true,
       trim: true,
-      // Explicitamente definimos o index como falso para garantir que não haja índice automático
-      index: false  
+      maxlength: 255
     },
-    description: {
-      type: String,
-      required: true
+    category: { 
+      type: String, 
+      required: true,
+      enum: ['basic', 'advanced', 'admin'],
+      default: 'basic'
     }
   },
   {
     timestamps: true,
-    versionKey: false,
-    // Desabilitando a criação automática de índices
-    autoIndex: false  
+    versionKey: false
   }
 );
 
 // Índice composto único para resource + action
-PermissionSchema.index({ resource: 1, action: 1 });
+PermissionSchema.index({ resource: 1, action: 1 }, { unique: true });
+PermissionSchema.index({ category: 1 });
 
-// Índice para route - mantemos apenas esta declaração
-PermissionSchema.index({ route: 1 });
+// Virtual para obter o código da permissão (resource:action)
+PermissionSchema.virtual('code').get(function() {
+  return `${this.resource}:${this.action}`;
+});
 
-// Método para verificar se uma rota corresponde ao padrão
-PermissionSchema.methods.matchRoute = function(route: string): boolean {
-  if (!this.route) return false;
-  
-  // Converte o padrão em regex (ex: /admin/* vira /admin/.*)
-  const pattern = this.route.replace(/\*/g, '.*');
-  const regex = new RegExp(`^${pattern}$`);
-  
-  return regex.test(route);
+// Método estático para buscar permissões por categoria
+PermissionSchema.statics.findByCategory = function(category: string) {
+  return this.find({ category });
 };
 
-// Função para criar o modelo Permission
+// Método estático para buscar permissões por recurso
+PermissionSchema.statics.findByResource = function(resource: string) {
+  return this.find({ resource });
+};
+
+// Função para criar modelo
 export const createPermissionModel = () => {
-  // Certificando que não estamos recriando o modelo se ele já existir
-  const modelName = 'Permission';
-  return mongoose.models[modelName] || mongoose.model<IPermission>(modelName, PermissionSchema);
+  return mongoose.models.Permission || mongoose.model<IPermission>("Permission", PermissionSchema);
 };
 
-export default createPermissionModel;
 export { PermissionSchema };
+export default createPermissionModel;

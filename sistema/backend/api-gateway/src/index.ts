@@ -7,17 +7,21 @@ import {
   WORKER_SERVICE_HOST,
   WORKER_SERVICE_PORT,
   PAYROLL_SERVICE_HOST,
-  PAYROLL_SERVICE_PORT
+  PAYROLL_SERVICE_PORT,
+  AUTH_SERVICE_HOST,      
+  AUTH_SERVICE_PORT 
 } from './config/env';
 import { handleWorkerRoutes } from './routes/worker.routes';
 import { handleDocumentRoutes } from './routes/document.routes';
 import { handleLogRoutes } from './routes/timeSheet.routes';
 import { handleTemplateRoutes } from './routes/template.routes';
 import { handlePayrollRoutes } from './routes/payroll.routes';
+import { handleAuthRoutes } from './routes/auth.routes'; 
 import { sendError } from './middlewares/errorHandler';
 import { checkTemplateService } from './services/templateServiceChecker';
 import { checkWorkerService } from './services/workerServiceChecker';
 import { checkPayrollService } from './services/payrollServiceChecker';
+import { checkAuthService } from './services/authServiceChecker';
 
 // API Gateway para rotear requisições para os serviços apropriados
 export class SimpleApiGateway {
@@ -55,6 +59,11 @@ export class SimpleApiGateway {
       const parsedUrl = url.parse(req.url || '/', true);
       const path = parsedUrl.pathname || '/';
       console.log(`🔄 Gateway recebeu requisição: ${req.method} ${path}`);
+
+       // Tenta processar as rotas de autenticação (PRIORIDADE MÁXIMA)
+      if (await handleAuthRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
+        return;
+      }
       
       // Tenta processar as rotas de documentos 
       if (await handleDocumentRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
@@ -98,6 +107,12 @@ const apiGateway = new SimpleApiGateway();
 async function startGateway() {
   console.log('🚀 Iniciando API Gateway...');  
 
+   // Verifica se o serviço de autenticação está disponível
+  const authServiceAvailable = await checkAuthService(
+    AUTH_SERVICE_HOST,
+    Number(AUTH_SERVICE_PORT)
+  );
+
   // Verifica se o serviço de templates está disponível
   const templateServiceAvailable = await checkTemplateService(
     TEMPLATE_SERVICE_HOST, 
@@ -117,7 +132,8 @@ async function startGateway() {
   );
   
   // Exibe o status dos serviços
-  console.log(`📊 Status dos serviços:`);  
+  console.log(`📊 Status dos serviços:`);
+  console.log(`Serviço de Autenticação: ${authServiceAvailable ? '✅ Online' : '❌ Offline'}`);   
   console.log(`Serviço de Workers (inclui Documentos e TimeSheet): ${workerServiceAvailable ? '✅ Online' : '❌ Offline'}`);
   console.log(`Serviço de Templates: ${templateServiceAvailable ? '✅ Online' : '❌ Offline'}`);
   console.log(`Serviço de Folha de Pagamento: ${payrollServiceAvailable ? '✅ Online' : '❌ Offline'}`);

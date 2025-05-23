@@ -1,55 +1,76 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 import bcrypt from 'bcrypt';
 
+// Interface para User
 export interface IUser extends Document {
-  _id: string;
+  name: string;
   email: string;
   password: string;
-  name: string;
   role: mongoose.Types.ObjectId;
-  isActive: boolean;
+  customPermissions?: string[];
+  status: "active" | "inactive" | "suspended";
   lastLogin?: Date;
+  loginAttempts?: number;
+  lockUntil?: Date;
+  createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
-  comparePassword(candidatePassword: string): Promise<boolean>;
+  
+  // Métodos
+  comparePassword(password: string): Promise<boolean>;
+  isLocked(): boolean;
+  incrementLoginAttempts(): Promise<void>;
+  resetLoginAttempts(): Promise<void>;
 }
 
+// Schema para User
 const UserSchema = new Schema<IUser>(
   {
-    email: {
-      type: String,
+    name: { 
+      type: String, 
       required: true,
-      unique: true,  // Já cria um índice único
+      trim: true,
+      minlength: 2,
+      maxlength: 100
+    },
+    email: { 
+      type: String, 
+      required: true, 
+      unique: true,
       lowercase: true,
       trim: true,
-      validate: {
-        validator: function(v: string) {
-          return /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/.test(v);
-        },
-        message: 'Email inválido'
-      }
+      match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Email inválido']
     },
-    password: {
-      type: String,
+    password: { 
+      type: String, 
       required: true,
       minlength: 6
     },
-    name: {
-      type: String,
-      required: true,
-      trim: true
-    },
-    role: {
-      type: Schema.Types.ObjectId,
+    role: { 
+      type: Schema.Types.ObjectId, 
       ref: 'Role',
       required: true
     },
-    isActive: {
-      type: Boolean,
-      default: true
+    customPermissions: [{
+      type: String,
+      validate: {
+        validator: function(permission: string) {
+          return /^[a-z]+:[a-z]+$/.test(permission);
+        },
+        message: 'Permission must be in format "resource:action"'
+      }
+    }],
+    status: {
+      type: String,
+      enum: ["active", "inactive", "suspended"],
+      default: "active"
     },
-    lastLogin: {
-      type: Date
+    lastLogin: { type: Date },
+    loginAttempts: { type: Number, default: 0 },
+    lockUntil: { type: Date },
+    createdBy: { 
+      type: Schema.Types.ObjectId, 
+      ref: 'User'
     }
   },
   {
@@ -58,19 +79,14 @@ const UserSchema = new Schema<IUser>(
   }
 );
 
-// Índices para performance - removendo o índice duplicado do email
-// UserSchema.index({ email: 1 });  // Removido porque unique: true já cria um índice
-UserSchema.index({ role: 1 });
-UserSchema.index({ isActive: 1 });
-
-// Hash da senha antes de salvar
-UserSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    return next();
-  }
+// Middleware para hash da senha antes de salvar
+UserSchema.pre('save', async function(next) {
+  // Só faz hash se a senha foi modificada
+  if (!this.isModified('password')) return next();
   
   try {
-    const salt = await bcrypt.genSalt(10);
+    // Gera o hash da senha
+    const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (error) {
@@ -79,26 +95,60 @@ UserSchema.pre('save', async function (next) {
 });
 
 // Método para comparar senha
-UserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
+UserSchema.methods.comparePassword = async function(password: string): Promise<boolean> {
   try {
-    return await bcrypt.compare(candidatePassword, this.password);
+    return await bcrypt.compare(password, this.password);
   } catch (error) {
     return false;
   }
 };
 
-// Remove senha ao retornar JSON
-UserSchema.methods.toJSON = function() {
-  const obj = this.toObject();
-  delete obj.password;
-  return obj;
+// Método para verificar se conta está bloqueada
+UserSchema.methods.isLocked = function(): boolean {
+  return !!(this.lockUntil && this.lockUntil > Date.now());
 };
 
-// Função para criar o modelo User
+// Método para incrementar tentativas de login
+UserSchema.methods.incrementLoginAttempts = async function(): Promise<void> {
+  // Se já tem um lockUntil e ainda está válido, apenas incrementa
+  if (this.lockUntil && this.lockUntil <= Date.now()) {
+    return this.updateOne({
+      $unset: { lockUntil: 1 },
+      $set: { loginAttempts: 1 }
+    });
+  }
+  
+  const updates: any = { $inc: { loginAttempts: 1 } };
+  
+  // Se atingiu o máximo de tentativas e não está bloqueado, bloqueia por 2 horas
+  if (this.loginAttempts + 1 >= 5 && !this.isLocked()) {
+    updates.$set = {
+      lockUntil: Date.now() + 2 * 60 * 60 * 1000 // 2 horas
+    };
+  }
+  
+  return this.updateOne(updates);
+};
+
+// Método para resetar tentativas de login
+UserSchema.methods.resetLoginAttempts = async function(): Promise<void> {
+  return this.updateOne({
+    $unset: {
+      loginAttempts: 1,
+      lockUntil: 1
+    }
+  });
+};
+
+// Índices para performance
+UserSchema.index({ status: 1 });
+UserSchema.index({ role: 1 });
+UserSchema.index({ lockUntil: 1 }, { sparse: true });
+
+// Função para criar modelo
 export const createUserModel = () => {
-  return mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
+  return mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
 };
 
-// Exportando o modelo e o schema
-export default createUserModel;
 export { UserSchema };
+export default createUserModel;

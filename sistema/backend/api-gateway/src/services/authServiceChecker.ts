@@ -4,7 +4,7 @@ import http from 'http';
 export async function checkAuthService(
   host: string,
   port: number,
-  path: string = '/health'
+  path: string = '/'
 ): Promise<boolean> {
   return new Promise((resolve) => {
     const req = http.request(

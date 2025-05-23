@@ -3,6 +3,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTemplate } from '@/hooks/useTemplate';
 import { DocumentType } from '@/types/template';
+import { motion, AnimatePresence } from "framer-motion";
+import Alert from '@/components/ui/Alert';
+import Button from '@/components/ui/Button';
+import {
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  EyeIcon,
+  ArrowDownTrayIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline';
 
 export default function TemplatesPage() {
   // Estados do formulário
@@ -117,6 +128,11 @@ export default function TemplatesPage() {
       // Recarregar lista e limpar formulário
       await fetchTemplates();
       resetForm();
+      
+      // Limpar mensagem após alguns segundos
+      setTimeout(() => {
+        setSuccessMessage('');
+      }, 3000);
     } catch (err) {
       console.error('Erro ao salvar template:', err);
     }
@@ -178,6 +194,11 @@ export default function TemplatesPage() {
       if (selectedTemplateId === id) {
         resetForm();
       }
+      
+      // Limpar mensagem após alguns segundos
+      setTimeout(() => {
+        setSuccessMessage('');
+      }, 3000);
     }
   };
 
@@ -205,254 +226,331 @@ export default function TemplatesPage() {
     }
   };
 
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { 
+        when: "beforeChildren",
+        staggerChildren: 0.1 
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { type: "spring", stiffness: 260, damping: 20 }
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Gerenciamento de Templates</h1>
-        
-        {/* Mensagens de sucesso e erro */}
+    <motion.div 
+      className="p-6 ml-[var(--sidebar-width,4.5rem)] transition-all duration-300 bg-gray-50 dark:bg-gray-900 min-h-screen"
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      style={{ width: "calc(100% - var(--sidebar-width, 4.5rem))" }}
+    >
+      {/* Page header */}
+      <motion.div variants={itemVariants} className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Gerenciamento de Templates</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">Crie, visualize e gerencie templates de documentos</p>
+      </motion.div>
+
+      {/* Mensagens de sucesso e erro */}
+      <AnimatePresence>
         {successMessage && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 relative">
-            <span className="block sm:inline">{successMessage}</span>
-            <button 
-              onClick={() => setSuccessMessage('')}
-              className="absolute top-0 bottom-0 right-0 px-4 py-3"
-            >
-              &times;
-            </button>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mb-4"
+          >
+            <Alert
+              type="success"
+              message={successMessage}
+              onClose={() => setSuccessMessage('')}
+            />
+          </motion.div>
         )}
         
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 relative">
-            <span className="block sm:inline">{error}</span>
-            <button 
-              onClick={clearError}
-              className="absolute top-0 bottom-0 right-0 px-4 py-3"
-            >
-              &times;
-            </button>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mb-4"
+          >
+            <Alert
+              type="error"
+              message={error}
+              onClose={clearError}
+            />
+          </motion.div>
         )}
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Lista de Templates */}
-          <div className="md:col-span-2">
-            <div className="bg-white shadow-md rounded-lg overflow-hidden">
-              <div className="px-4 py-5 border-b border-gray-200 sm:px-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">
-                  Templates Disponíveis
-                </h3>
-              </div>
-              
-              {loading && templates.length === 0 ? (
-                <div className="flex justify-center items-center p-6">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-                </div>
-              ) : templates.length === 0 ? (
-                <div className="p-6 text-center text-gray-500">
-                  <p>Nenhum template disponível.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Nome
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tipo
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Formato
-                        </th>
-                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Ações
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {templates.map((template) => (
-                        <tr key={template._id} className={selectedTemplateId === template._id ? 'bg-blue-50' : ''}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{template.name}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">{template.type}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">{template.format.toUpperCase()}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                            <button
-                              onClick={() => handleView(template._id!)}
-                              className="text-blue-600 hover:text-blue-900 mx-1"
-                            >
-                              Ver
-                            </button>
-                            <button
-                              onClick={() => handleEdit(template._id!)}
-                              className="text-indigo-600 hover:text-indigo-900 mx-1"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => handleDownload(template._id!)}
-                              className="text-green-600 hover:text-green-900 mx-1"
-                            >
-                              Baixar
-                            </button>
-                            <button
-                              onClick={() => handleDelete(template._id!)}
-                              className="text-red-600 hover:text-red-900 mx-1"
-                            >
-                              Excluir
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Formulário */}
-          <div className="bg-white shadow-md rounded-lg overflow-hidden">
-            <div className="px-4 py-5 border-b border-gray-200 sm:px-6 flex justify-between items-center">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">
-                {isEditing ? 'Editar Template' : selectedTemplateId ? 'Visualizar Template' : 'Novo Template'}
+      </AnimatePresence>
+      
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Lista de Templates */}
+        <div className="md:col-span-2">
+          <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700">
+            <div className="px-4 py-5 border-b border-gray-200 dark:border-gray-700 sm:px-6 flex justify-between items-center">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                Templates Disponíveis
               </h3>
-              {(isEditing || selectedTemplateId) && (
-                <button
-                  onClick={resetForm}
-                  className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                >
-                  Novo
-                </button>
-              )}
+              <motion.button 
+                onClick={resetForm}
+                className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700 px-3 flex items-center py-2 rounded-lg text-sm gap-2 text-white shadow-sm transition-colors"
+                whileHover={{ scale: 1.02 }} 
+                whileTap={{ scale: 0.95 }}
+              >
+                <span>Novo Template</span>
+                <PlusIcon className="h-5 w-5" />
+              </motion.button>
             </div>
             
-            <div className="p-6">
-              <form onSubmit={handleSubmit}>
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                      Nome
-                    </label>
-                    <input
-                      type="text"
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                      required
-                      disabled={!!selectedTemplateId && !isEditing}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="type" className="block text-sm font-medium text-gray-700">
-                      Tipo
-                    </label>
-                    <select
-                      id="type"
-                      value={type}
-                      onChange={(e) => setType(e.target.value as DocumentType)}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                      required
-                      disabled={!!selectedTemplateId && !isEditing}
-                    >
-                      {Object.values(DocumentType).map((docType) => (
-                        <option key={docType} value={docType}>
-                          {docType}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                      Descrição
-                    </label>
-                    <textarea
-                      id="description"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      rows={3}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                      disabled={!!(selectedTemplateId && !isEditing)}
-                    />
-                  </div>
-                  
-                  {(!selectedTemplateId || isEditing) && (
-                    <div>
-                      <label htmlFor="file" className="block text-sm font-medium text-gray-700">
-                        Arquivo {isEditing && '(deixe em branco para manter o atual)'}
-                      </label>
-                      <input
-                        type="file"
-                        id="file"
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                        required={!isEditing}
-                      />
-                    </div>
-                  )}
-                  
-                  {selectedTemplateId && currentTemplate && !isEditing ? (
-                    <div className="flex space-x-3 pt-4">
-                      <button
-                        type="button"
-                        onClick={() => handleEdit(selectedTemplateId)}
-                        className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDownload(selectedTemplateId)}
-                        className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                      >
-                        Baixar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(selectedTemplateId)}
-                        className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                      >
-                        Excluir
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex justify-end space-x-3 pt-4">
-                      {isEditing && (
-                        <button
-                          type="button"
-                          onClick={resetForm}
-                          className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                        >
-                          Cancelar
-                        </button>
-                      )}
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300"
-                      >
-                        {loading ? 'Salvando...' : isEditing ? 'Atualizar' : 'Salvar'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </form>
-            </div>
+            {loading && templates.length === 0 ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 dark:border-cyan-400"></div>
+              </div>
+            ) : templates.length === 0 ? (
+              <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+                <p>Nenhum template disponível.</p>
+                <Button
+                  variant="primary"
+                  className="mt-4 bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700"
+                  onClick={resetForm}
+                >
+                  Adicionar Template
+                </Button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Nome
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Tipo
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Formato
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Ações
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {templates.map((template) => (
+                      <tr key={template._id} className={`${selectedTemplateId === template._id ? 'bg-blue-50 dark:bg-blue-900/20' : ''} hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors`}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{template.name}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{template.type}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{template.format.toUpperCase()}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                          <div className="flex justify-center space-x-3">
+                            <motion.button
+                              onClick={() => handleView(template._id!)}
+                              className="text-cyan-600 hover:text-cyan-900 dark:text-cyan-400 dark:hover:text-cyan-300"
+                              title="Visualizar"
+                              whileHover={{ scale: 1.15 }}
+                              whileTap={{ scale: 0.9 }}
+                            >
+                              <EyeIcon className="h-5 w-5" />
+                            </motion.button>
+                            <motion.button
+                              onClick={() => handleEdit(template._id!)}
+                              className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                              title="Editar"
+                              whileHover={{ scale: 1.15 }}
+                              whileTap={{ scale: 0.9 }}
+                            >
+                              <PencilIcon className="h-5 w-5" />
+                            </motion.button>
+                            <motion.button
+                              onClick={() => handleDownload(template._id!)}
+                              className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                              title="Baixar"
+                              whileHover={{ scale: 1.15 }}
+                              whileTap={{ scale: 0.9 }}
+                            >
+                              <ArrowDownTrayIcon className="h-5 w-5" />
+                            </motion.button>
+                            <motion.button
+                              onClick={() => handleDelete(template._id!)}
+                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                              title="Excluir"
+                              whileHover={{ scale: 1.15 }}
+                              whileTap={{ scale: 0.9 }}
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </motion.button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
-      </div>
-    </div>
+        
+        {/* Formulário */}
+        <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700">
+          <div className="px-4 py-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+              {isEditing ? 'Editar Template' : selectedTemplateId ? 'Visualizar Template' : 'Novo Template'}
+            </h3>
+            {(isEditing || selectedTemplateId) && (
+              <motion.button
+                onClick={resetForm}
+                className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </motion.button>
+            )}
+          </div>
+          
+          <div className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Nome <span className="text-red-500 dark:text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm"
+                  required
+                  disabled={!!selectedTemplateId && !isEditing}
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Tipo <span className="text-red-500 dark:text-red-400">*</span>
+                </label>
+                <select
+                  id="type"
+                  value={type}
+                  onChange={(e) => setType(e.target.value as DocumentType)}
+                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm"
+                  required
+                  disabled={!!selectedTemplateId && !isEditing}
+                >
+                  {Object.values(DocumentType).map((docType) => (
+                    <option key={docType} value={docType}>
+                      {docType}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Descrição
+                </label>
+                <textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400 sm:text-sm"
+                  disabled={!!(selectedTemplateId && !isEditing)}
+                />
+              </div>
+              
+              {(!selectedTemplateId || isEditing) && (
+                <div>
+                  <label htmlFor="file" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Arquivo {isEditing && '(deixe em branco para manter o atual)'}
+                  </label>
+                  <input
+                    type="file"
+                    id="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="mt-1 block w-full text-sm text-gray-500 dark:text-gray-400
+                      file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold 
+                      file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100
+                      dark:file:bg-cyan-900/30 dark:file:text-cyan-300 dark:hover:file:bg-cyan-800/40"
+                    required={!isEditing}
+                  />
+                </div>
+              )}
+              
+              {selectedTemplateId && currentTemplate && !isEditing ? (
+                <div className="flex space-x-3 pt-4">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => handleEdit(selectedTemplateId)}
+                    className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700"
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => handleDownload(selectedTemplateId)}
+                    className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white"
+                  >
+                    Baixar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="danger"
+                    onClick={() => handleDelete(selectedTemplateId)}
+                    className="bg-red-500 hover:bg-red-600 text-white dark:bg-red-600 dark:hover:bg-red-700"
+                  >
+                    Excluir
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex justify-end space-x-3 pt-4">
+                  {isEditing && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={resetForm}
+                      className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
+                    >
+                      Cancelar
+                    </Button>
+                  )}
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    isLoading={loading}
+                    className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700"
+                  >
+                    {isEditing ? 'Atualizar' : 'Salvar'}
+                  </Button>
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }

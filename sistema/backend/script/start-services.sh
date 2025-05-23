@@ -18,11 +18,16 @@ BASE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 LOGS_DIR="../logs"
 
 # Lista de serviços para iniciar
-SERVICES=(    
-  "worker-service"  
+SERVICES=(  
+  "auth-service"   
+  "visitor-service" 
+  "invoice-service" 
   "template-service"
-  "payroll-service"
-  "auth-service"
+  "payroll-service"  
+  "worker-service"
+  "provider-service"
+  "web-socket"  
+  
 
   #Sempre deixe o api-gateway por último
   # pois ele depende dos outros microsserviços

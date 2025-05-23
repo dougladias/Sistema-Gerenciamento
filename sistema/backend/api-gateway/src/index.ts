@@ -8,19 +8,31 @@ import {
   WORKER_SERVICE_PORT,
   PAYROLL_SERVICE_HOST,
   PAYROLL_SERVICE_PORT,
-  AUTH_SERVICE_HOST,      
-  AUTH_SERVICE_PORT 
+  INVOICE_SERVICE_HOST,
+  INVOICE_SERVICE_PORT,
+  VISITOR_SERVICE_HOST,
+  VISITOR_SERVICE_PORT,
+  PROVIDER_SERVICE_HOST,
+  PROVIDER_SERVICE_PORT,
+  AUTH_SERVICE_HOST,
+  AUTH_SERVICE_PORT
 } from './config/env';
 import { handleWorkerRoutes } from './routes/worker.routes';
 import { handleDocumentRoutes } from './routes/document.routes';
 import { handleLogRoutes } from './routes/timeSheet.routes';
 import { handleTemplateRoutes } from './routes/template.routes';
 import { handlePayrollRoutes } from './routes/payroll.routes';
-import { handleAuthRoutes } from './routes/auth.routes'; 
+import { handleInvoiceRoutes } from './routes/invoice.routes';
+import { handleVisitorRoutes } from './routes/visitor.routes';
+import { handleProviderRoutes } from './routes/provider.routes';
+import { handleAuthRoutes } from './routes/auth.routes';
 import { sendError } from './middlewares/errorHandler';
 import { checkTemplateService } from './services/templateServiceChecker';
 import { checkWorkerService } from './services/workerServiceChecker';
 import { checkPayrollService } from './services/payrollServiceChecker';
+import { checkInvoiceService } from './services/invoiceServiceChecker';
+import { checkVisitorService } from './services/visitorServiceChecker';
+import { checkProviderService } from './services/providerServiceChecker';
 import { checkAuthService } from './services/authServiceChecker';
 
 // API Gateway para rotear requisições para os serviços apropriados
@@ -60,7 +72,7 @@ export class SimpleApiGateway {
       const path = parsedUrl.pathname || '/';
       console.log(`🔄 Gateway recebeu requisição: ${req.method} ${path}`);
 
-       // Tenta processar as rotas de autenticação (PRIORIDADE MÁXIMA)
+       // Tenta processar as rotas de autenticação 
       if (await handleAuthRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
         return;
       }
@@ -89,6 +101,21 @@ export class SimpleApiGateway {
       if (await handlePayrollRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
         return;
       }
+      
+      // Tenta processar as rotas de notas fiscais
+      if (await handleInvoiceRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
+        return;
+      }
+      
+      // Tenta processar as rotas de visitantes
+      if (await handleVisitorRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
+        return;
+      }
+
+      // Tenta processar as rotas de Prestadores
+      if (await handleProviderRoutes(req, res, path, new URL(req.url || '/', `http://${req.headers.host}`))) {
+        return;
+      }
 
       // Caso nenhuma rota seja encontrada
       console.warn(`❌ Rota não encontrada: ${path}`);
@@ -107,7 +134,7 @@ const apiGateway = new SimpleApiGateway();
 async function startGateway() {
   console.log('🚀 Iniciando API Gateway...');  
 
-   // Verifica se o serviço de autenticação está disponível
+  // Verifica se o serviço de autenticação está disponível
   const authServiceAvailable = await checkAuthService(
     AUTH_SERVICE_HOST,
     Number(AUTH_SERVICE_PORT)
@@ -131,12 +158,33 @@ async function startGateway() {
     Number(PAYROLL_SERVICE_PORT)
   );
   
+  // Verifica se o serviço de notas fiscais está disponível
+  const invoiceServiceAvailable = await checkInvoiceService(
+    INVOICE_SERVICE_HOST,
+    Number(INVOICE_SERVICE_PORT)
+  );
+  
+  // Verifica se o serviço de visitantes está disponível
+  const visitorServiceAvailable = await checkVisitorService(
+    VISITOR_SERVICE_HOST,
+    Number(VISITOR_SERVICE_PORT)
+  );
+
+  // Verifica se o serviço de prestadores está disponível
+  const providerServiceAvailable = await checkProviderService(
+    PROVIDER_SERVICE_HOST,
+    Number(PROVIDER_SERVICE_PORT)
+  );
+  
   // Exibe o status dos serviços
-  console.log(`📊 Status dos serviços:`);
-  console.log(`Serviço de Autenticação: ${authServiceAvailable ? '✅ Online' : '❌ Offline'}`);   
-  console.log(`Serviço de Workers (inclui Documentos e TimeSheet): ${workerServiceAvailable ? '✅ Online' : '❌ Offline'}`);
+  console.log(`📊 Status dos serviços:`);  
+  console.log(`Serviço de Autenticação: ${authServiceAvailable ? '✅ Online' : '❌ Offline'}`);
+  console.log(`Serviço de Workers (Documentos e TimeSheet): ${workerServiceAvailable ? '✅ Online' : '❌ Offline'}`);
   console.log(`Serviço de Templates: ${templateServiceAvailable ? '✅ Online' : '❌ Offline'}`);
   console.log(`Serviço de Folha de Pagamento: ${payrollServiceAvailable ? '✅ Online' : '❌ Offline'}`);
+  console.log(`Serviço de Notas Fiscais: ${invoiceServiceAvailable ? '✅ Online' : '❌ Offline'}`);
+  console.log(`Serviço de Controle de Visitantes: ${visitorServiceAvailable ? '✅ Online' : '❌ Offline'}`);
+  console.log(`Serviço de Prestadores: ${providerServiceAvailable ? '✅ Online' : '❌ Offline'}`);
   
   // Inicia o gateway mesmo que alguns serviços estejam offline
   apiGateway.start();

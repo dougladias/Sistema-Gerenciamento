@@ -14,7 +14,7 @@ export async function handleAuthRoutes(
   const normalizedPath = path.startsWith('/api/') ? path.substring(4) : path;
   
   if (
-    // Rotas de autenticação
+    // Rotas de autenticação principais
     normalizedPath === '/auth/login' ||
     normalizedPath === '/auth/logout' ||
     normalizedPath === '/auth/refresh' ||
@@ -24,6 +24,10 @@ export async function handleAuthRoutes(
     normalizedPath === '/auth/status' ||
     normalizedPath === '/auth/info' ||
     normalizedPath.startsWith('/auth/') ||
+    
+    // Rotas de usuários
+    normalizedPath === '/users' ||
+    normalizedPath.startsWith('/users/') ||
     
     // Rotas do backoffice
     normalizedPath === '/backoffice/dashboard' ||

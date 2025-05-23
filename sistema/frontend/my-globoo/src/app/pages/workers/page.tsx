@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useWorker } from '@/hooks/useWorkers';
 import { Worker } from '@/types/worker';
 import Button from '@/components/ui/Button';
@@ -13,6 +13,7 @@ import {
   TrashIcon,
   EyeIcon,
   XMarkIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 
 export default function WorkersPage() {
@@ -21,6 +22,7 @@ export default function WorkersPage() {
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Hook personalizado para gerenciar os funcionários
   const {
@@ -70,6 +72,19 @@ export default function WorkersPage() {
     status: 'active'
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Filtrar funcionários com base no termo de pesquisa
+  const filteredWorkers = useMemo(() => {
+    if (!searchTerm.trim()) return workers;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return workers.filter((worker: Worker) => 
+      worker.name?.toLowerCase().includes(searchLower) || 
+      worker.cpf?.includes(searchTerm) || 
+      worker.role?.toLowerCase().includes(searchLower) || 
+      worker.department?.toLowerCase().includes(searchLower)
+    );
+  }, [workers, searchTerm]);
 
   // Carrega os funcionários ao iniciar
   useEffect(() => {
@@ -305,17 +320,35 @@ export default function WorkersPage() {
   const renderWorkersList = () => {
     return (
       <div className="bg-white shadow-md rounded-lg overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-        <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
+        <div className="flex flex-col sm:flex-row justify-between items-center p-4 border-b dark:border-gray-700 gap-3">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Lista de Funcionários</h2>
-          <motion.button 
-            className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700 px-4 flex items-center py-2 rounded-xl text-[14px] gap-2 text-white shadow-sm transition-colors"
-            onClick={handleNewWorker} 
-            whileHover={{ scale: 1.02 }} 
-            whileTap={{ scale: 0.95 }}
-          >
-            <span>Novo Funcionário</span>
-            <PlusIcon className="h-5 w-5" />
-          </motion.button>
+          
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            {/* Search Bar */}
+            <div className="relative flex-grow sm:flex-grow-0">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 relative right-10" />
+              </div>
+              <input
+                type="text"
+                className="block w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-600 focus:border-cyan-500 dark:focus:border-cyan-600 transition-colors"
+                placeholder="Buscar funcionário..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            {/* New Worker Button */}
+            <motion.button 
+              className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700 px-4 flex items-center py-4 rounded-lg text-[14px] gap-2 text-white shadow-sm transition-colors whitespace-nowrap"
+              onClick={handleNewWorker} 
+              whileHover={{ scale: 1.02 }} 
+              whileTap={{ scale: 0.95 }}
+            >
+              <span>Novo Funcionário</span>
+              <PlusIcon className="h-5 w-5" />
+            </motion.button>
+          </div>
         </div>
 
         {workers.length === 0 ? (
@@ -355,66 +388,76 @@ export default function WorkersPage() {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {workers.map((worker: Worker) => (
-                  <tr key={worker._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{worker.name}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{formatCPF(worker.cpf)}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{worker.role}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{worker.department}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${worker.status === 'active' 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
-                          : worker.status === 'inactive' 
-                            ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' 
-                            : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
-                        {formatStatus(worker.status || 'active')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                      <div className="flex justify-center space-x-3">
-                        <motion.button
-                          onClick={() => handleViewWorker(worker._id as string)}
-                          className="text-cyan-600 hover:text-cyan-900 dark:text-cyan-400 dark:hover:text-cyan-300"
-                          title="Ver detalhes"
-                          whileHover={{ scale: 1.15 }}
-                          whileTap={{ scale: 0.9 }}
-                        >
-                          <EyeIcon className="h-5 w-5" />
-                        </motion.button>
-                        <motion.button
-                          onClick={() => handleEditWorker(worker._id as string)}
-                          className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
-                          title="Editar"
-                          whileHover={{ scale: 1.15 }}
-                          whileTap={{ scale: 0.9 }}
-                        >
-                          <PencilIcon className="h-5 w-5" />
-                        </motion.button>
-                        <motion.button
-                          onClick={() => {
-                            fetchWorkerById(worker._id as string);
-                            setIsDeleteModalOpen(true);
-                          }}
-                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                          title="Excluir"
-                          whileHover={{ scale: 1.15 }}
-                          whileTap={{ scale: 0.9 }}
-                        >
-                          <TrashIcon className="h-5 w-5" />
-                        </motion.button>
-                      </div>
+                {filteredWorkers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                      {searchTerm 
+                        ? "Nenhum funcionário encontrado com esse termo de busca." 
+                        : "Nenhum funcionário cadastrado."}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredWorkers.map((worker: Worker) => (
+                    <tr key={worker._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{worker.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{formatCPF(worker.cpf)}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{worker.role}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{worker.department}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                          ${worker.status === 'active' 
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
+                            : worker.status === 'inactive' 
+                              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' 
+                              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
+                          {formatStatus(worker.status || 'active')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <div className="flex justify-center space-x-3">
+                          <motion.button
+                            onClick={() => handleViewWorker(worker._id as string)}
+                            className="text-cyan-600 hover:text-cyan-900 dark:text-cyan-400 dark:hover:text-cyan-300"
+                            title="Ver detalhes"
+                            whileHover={{ scale: 1.15 }}
+                            whileTap={{ scale: 0.9 }}
+                          >
+                            <EyeIcon className="h-5 w-5" />
+                          </motion.button>
+                          <motion.button
+                            onClick={() => handleEditWorker(worker._id as string)}
+                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                            title="Editar"
+                            whileHover={{ scale: 1.15 }}
+                            whileTap={{ scale: 0.9 }}
+                          >
+                            <PencilIcon className="h-5 w-5" />
+                          </motion.button>
+                          <motion.button
+                            onClick={() => {
+                              fetchWorkerById(worker._id as string);
+                              setIsDeleteModalOpen(true);
+                            }}
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                            title="Excluir"
+                            whileHover={{ scale: 1.15 }}
+                            whileTap={{ scale: 0.9 }}
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </motion.button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -845,10 +888,9 @@ export default function WorkersPage() {
         onClose={() => setIsDeleteModalOpen(false)}
         title="Confirmar Exclusão"
         size="sm"
-        closeOnOutsideClick={true} // Changed to true to allow clicking outside to close
+        closeOnOutsideClick={true}
         footer={
           <div className="flex space-x-3">
-            {/* Remove the motion.div wrapper that's capturing clicks */}
             <Button
               variant="secondary"
               onClick={() => setIsDeleteModalOpen(false)}
@@ -858,7 +900,6 @@ export default function WorkersPage() {
               Cancelar
             </Button>
             
-            {/* Remove the motion.div wrapper that's capturing clicks */}
             <Button
               variant="danger"
               onClick={handleDeleteConfirm}
@@ -886,10 +927,10 @@ export default function WorkersPage() {
             </motion.div>
           </div>
           
-          <p className="text-gray-700 text-center">
+          <p className="text-gray-700 dark:text-gray-300 text-center">
             Tem certeza que deseja excluir o funcionário <strong>{currentWorker?.name}</strong>?
           </p>
-          <p className="text-gray-700 text-center mt-2 text-sm">
+          <p className="text-gray-700 dark:text-gray-400 text-center mt-2 text-sm">
             Esta ação não pode ser desfeita.
           </p>
         </motion.div>
@@ -897,3 +938,4 @@ export default function WorkersPage() {
     </motion.div>
   );
 }
+

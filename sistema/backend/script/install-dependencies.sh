@@ -13,11 +13,15 @@ BASE_DIR="../../backend"
 
 # Lista de serviços
 SERVICES=(
-  "api-gateway"  
+  "api-gateway" 
+  "auth-service" 
   "worker-service"
   "template-service"
+  "web-socket"
   "payroll-service"
-  "auth-service"
+  "invoice-service"
+  "visitor-service"
+  "provider-service"
 )
 
 # Função para instalar dependências em um serviço

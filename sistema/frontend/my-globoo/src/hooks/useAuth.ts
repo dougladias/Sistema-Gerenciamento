@@ -31,7 +31,8 @@ export const useAuthManagement = () => {
     email: string;
     password: string;
     name: string;
-    roleId: string;
+    role: string;
+    permissions?: string[];
   }) => {
     if (!token) return null;
     
@@ -56,7 +57,9 @@ export const useAuthManagement = () => {
     setError(null);
     try {
       const updatedUser = await authService.updateUser(id, updates, token);
-      setUsers(prev => prev.map(user => user.id === id ? updatedUser : user));
+      setUsers(prev => prev.map(user => 
+        (user._id || user.id) === id ? updatedUser : user
+      ));
       return updatedUser;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao atualizar usuário');
@@ -73,7 +76,7 @@ export const useAuthManagement = () => {
     setError(null);
     try {
       await authService.deleteUser(id, token);
-      setUsers(prev => prev.filter(user => user.id !== id));
+      setUsers(prev => prev.filter(user => (user._id || user.id) !== id));
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao excluir usuário');
@@ -83,17 +86,36 @@ export const useAuthManagement = () => {
     }
   }, [token]);
 
-  const changeUserRole = useCallback(async (userId: string, roleId: string) => {
+  const changeUserRole = useCallback(async (userId: string, role: string) => {
     if (!token) return null;
     
     setLoading(true);
     setError(null);
     try {
-      const updatedUser = await authService.changeUserRole(userId, roleId, token);
-      setUsers(prev => prev.map(user => user.id === userId ? updatedUser : user));
+      const updatedUser = await authService.changeUserRole(userId, role, token);
+      setUsers(prev => prev.map(user => 
+        (user._id || user.id) === userId ? updatedUser : user
+      ));
       return updatedUser;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao alterar role do usuário');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  // Busca usuário por email
+  const fetchUserByEmail = useCallback(async (email: string) => {
+    if (!token) return null;
+    
+    setLoading(true);
+    setError(null);
+    try {
+      const user = await authService.getUserByEmail(email, token);
+      return user;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao buscar usuário por email');
       return null;
     } finally {
       setLoading(false);
@@ -107,7 +129,7 @@ export const useAuthManagement = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await authService.getAllRoles(token);
+      const data = await authService.getAllRoles();
       setRoles(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao buscar roles');
@@ -126,7 +148,7 @@ export const useAuthManagement = () => {
     setLoading(true);
     setError(null);
     try {
-      const newRole = await authService.createRole(roleData, token);
+      const newRole = await authService.createRole(roleData);
       setRoles(prev => [...prev, newRole]);
       return newRole;
     } catch (err) {
@@ -144,12 +166,25 @@ export const useAuthManagement = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await authService.getAllPermissions(token);
+      const data = await authService.getAllPermissions();
       setPermissions(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao buscar permissões');
     } finally {
       setLoading(false);
+    }
+  }, [token]);
+
+  // Verifica permissões
+  const checkUserPermission = useCallback(async (resource: string, action: string) => {
+    if (!token) return false;
+    
+    try {
+      const result = await authService.checkPermission(resource, action, token);
+      return result.hasPermission;
+    } catch (err) {
+      console.error('Erro ao verificar permissão:', err);
+      return false;
     }
   }, [token]);
 
@@ -171,6 +206,7 @@ export const useAuthManagement = () => {
     updateUser,
     deleteUser,
     changeUserRole,
+    fetchUserByEmail,
     
     // Funções de roles
     fetchRoles,
@@ -178,6 +214,7 @@ export const useAuthManagement = () => {
     
     // Funções de permissões
     fetchPermissions,
+    checkUserPermission,
     
     // Utilitários
     clearError

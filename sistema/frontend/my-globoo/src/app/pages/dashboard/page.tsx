@@ -4,6 +4,11 @@ import React, { useEffect, useState } from "react";
 import useWorker from "@/hooks/useWorkers";
 import useLog from "@/hooks/useTimeSheet";
 
+interface WorkerLog {
+  entryTime?: string | Date | undefined;
+  // Adicione outras propriedades do log conforme necessário
+}
+
 function isToday(dateString: string | Date | undefined) {
   if (!dateString) return false;
   const date = new Date(dateString);
@@ -16,7 +21,7 @@ function isToday(dateString: string | Date | undefined) {
 }
 
 export default function DashboardPage() {
-  const { workers, fetchWorkers, loading: workersLoading } = useWorker();
+  const { workers, fetchWorkers } = useWorker();
   const { fetchWorkerLogs } = useLog();
 
   const [presentToday, setPresentToday] = useState(0);
@@ -48,7 +53,7 @@ export default function DashboardPage() {
         workers.map(async (worker) => {
           if (!worker._id) return;
           const logs = await fetchWorkerLogs(worker._id);
-          const hasLogToday = Array.isArray(logs) && logs.some((log: any) => isToday(log.entryTime));
+          const hasLogToday = Array.isArray(logs) && logs.some((log: WorkerLog) => isToday(log.entryTime));
           if (hasLogToday) present += 1;
         })
       );

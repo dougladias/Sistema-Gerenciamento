@@ -6,6 +6,7 @@ import { Search, Clock, X, Calendar, User, FileText } from "lucide-react";
 import { Worker, Entry } from "@/types/worker";
 import useWorker from "@/hooks/useWorkers";
 import useLog from "@/hooks/useTimeSheet";
+import Dashboard from "@/components/data/DataWorkers";
 
 // Variantes para animação do container principal
 const containerVariants = {
@@ -662,7 +663,7 @@ const TimeTrackingPage: React.FC = () => {
       variants={containerVariants}
       style={{ width: "calc(100% - var(--sidebar-width, 4.5rem))" }}
     >
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 p-3">
         <div className="flex flex-col">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow">Controle de Ponto</h2>
           <p className="text-gray-600 dark:text-gray-400">
@@ -682,8 +683,9 @@ const TimeTrackingPage: React.FC = () => {
           />
         </div>
       </div>
+        <Dashboard />
 
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg dark:shadow-cyan-900/10 p-2 border border-gray-100 dark:border-gray-800/60">
+      <div className="mt-4 bg-white dark:bg-gray-900 rounded-2xl shadow-lg dark:shadow-cyan-900/10 p-2 border border-gray-100 dark:border-gray-800/60">
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-gray-100 dark:bg-gray-800/80 rounded text-gray-700 dark:text-gray-200">

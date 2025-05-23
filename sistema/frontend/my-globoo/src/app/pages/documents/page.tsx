@@ -394,7 +394,7 @@ const DocumentsPage: React.FC = () => {
                   <label className="block mb-1 font-medium text-gray-800 dark:text-gray-200">Categoria:</label>
                   <select
                     name="category"
-                    className="p-4 w-full border rounded p-2 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    className="p-4 w-full border rounded bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                     value={uploadFormData.category}
                     onChange={handleUploadFormChange}
                   >
